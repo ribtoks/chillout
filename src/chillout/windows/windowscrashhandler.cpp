@@ -13,6 +13,10 @@
 #include <crtdbg.h>
 #include <signal.h>
 
+#include <locale>
+#include <codecvt>
+#include <ctime>
+
 #if _MSC_VER < 1400
 #define strcpy_s(dst, len, src) strcpy(dst, src)
 #define strncpy_s(dst, len, src, maxLen) strncpy(dst, len, src)
@@ -187,12 +191,12 @@ BOOL CALLBACK MyMiniDumpCallback(
 
 }
 
-BOOL CreateMiniDump(EXCEPTION_POINTERS * pep, MINIDUMP_TYPE mdt, WindowsCrashHandler * wch)
+BOOL CreateMiniDump(LPCTSTR lpFileName, EXCEPTION_POINTERS * pep, MINIDUMP_TYPE mdt, WindowsCrashHandler * wch)
 {
     BOOL rv = FALSE;
     // Open the file
 
-    HANDLE hFile = CreateFile( _T(STRINGIZE(APPNAME))_T(".dmp"), GENERIC_READ | GENERIC_WRITE,
+    HANDLE hFile = CreateFile( lpFileName, GENERIC_READ | GENERIC_WRITE,
                                0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
 
     if( ( hFile != NULL ) && ( hFile != INVALID_HANDLE_VALUE ) )
@@ -386,12 +390,22 @@ WindowsCrashHandler::WindowsCrashHandler()
     m_prevSigABRT = NULL;  
     m_prevSigINT = NULL;  
     m_prevSigTERM = NULL;
+
+    m_CrashDumpSize = CrashDumpNormal;
 }
 
-void WindowsCrashHandler::Setup()
+void WindowsCrashHandler::Setup(const std::wstring &appName, const std::wstring &dumpsDir)
 {
+    m_AppName = appName;
+    m_DumpsDir = dumpsDir;
+    
     EnableCrashingOnCrashes();
     SetProcessExceptionHandlers();
+}
+
+void WindowsCrashHandler::SetCrashDumpSize(CrashDumpSize size)
+{
+    m_CrashDumpSize = size;
 }
 
 void WindowsCrashHandler::SetCrashCallback(const std::function<void()> &crashCallback)
@@ -460,7 +474,11 @@ void WindowsCrashHandler::CreateDump(EXCEPTION_POINTERS* pExPtrs)
         }
     }
 
-    CreateMiniDump(pExPtrs, mdt);
+    std::wstring pathToCrashFile = L"\\\\?\\" + m_DumpsDir + L"\\" + m_AppName + ".dmp";
+    using convert_type = std::codecvt_utf8<wchar_t>;
+    std::wstring_convert<convert_type, wchar_t> converter;
+    std::string path = converter.to_bytes(pathToCrashFile);
+    CreateMiniDump(path.c_str(), pExPtrs, mdt);
 }
 
 bool WindowsCrashHandler::IsDataSectionNeeded(const WCHAR* pModuleName)

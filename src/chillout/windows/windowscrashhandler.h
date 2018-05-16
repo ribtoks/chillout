@@ -60,7 +60,8 @@ private:
     WindowsCrashHandler();
 
 public:
-    void Setup();
+    void Setup(const std::wstring &appName, const std::wstring &dumpsDir);
+    void SetCrashDumpSize(CrashDumpSize size);
     void SetCrashCallback(const std::function<void()> &crashCallback);
     void SetBacktraceCallback(const std::function<void(const char const *)> &backtraceCallback);
     void HandleCrash(EXCEPTION_POINTERS* pExPtrs);
@@ -104,6 +105,7 @@ private:
     std::mutex m_CrashMutex;
     CrashDumpSize m_CrashDumpSize;
     std::wstring m_AppName;
+    std::wstring m_DumpsDir;
     
     std::map<DWORD, ThreadExceptionHandlers> m_ThreadExceptionHandlers;
     std::mutex m_ThreadHandlersMutex;
