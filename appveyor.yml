@@ -46,4 +46,3 @@ build:
   project: c:\projects\chillout\build\chillout.sln
   verbosity: minimal
   parallel: true
-  

@@ -8,7 +8,7 @@ void Chillout::init()
 {
 #ifdef _WIN32
     WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-    handler.Setup();
+    handler.Setup(L"", L"");
 #endif
 }
 

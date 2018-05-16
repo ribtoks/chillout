@@ -304,7 +304,6 @@ void GetExceptionPointers(DWORD dwExceptionCode,
     (*ppExceptionPointers)->ContextRecord = pContextRecord;
 }
 
-
 void DoHandleCrash(EXCEPTION_POINTERS* pExPtrs)
 {
     WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
@@ -450,12 +449,12 @@ void WindowsCrashHandler::CreateDump(EXCEPTION_POINTERS* pExPtrs)
     switch (m_CrashDumpSize)
     {
         case CrashDumpSmall:
-            mdt |= (MiniDumpScanMemory |
-                    MiniDumpWithThreadInfo)
+            mdt = (MINIDUMP_TYPE)(MiniDumpScanMemory |
+                                  MiniDumpWithThreadInfo);
             break;
         case CrashDumpNormal:
         {
-            mdt |= (MiniDumpScanMemory |
+            mdt = (MINIDUMP_TYPE)(MiniDumpScanMemory |
                     MiniDumpWithHandleData |
                     MiniDumpWithThreadInfo |
                     MiniDumpWithIndirectlyReferencedMemory);
@@ -463,7 +462,7 @@ void WindowsCrashHandler::CreateDump(EXCEPTION_POINTERS* pExPtrs)
         }        
         case CrashDumpFull:
         {
-            mdt |= (MiniDumpWithPrivateReadWriteMemory |
+            mdt = (MINIDUMP_TYPE)(MiniDumpWithPrivateReadWriteMemory |
                     MiniDumpWithDataSegs |
                     MiniDumpWithHandleData |
                     MiniDumpWithFullMemoryInfo |
@@ -474,11 +473,11 @@ void WindowsCrashHandler::CreateDump(EXCEPTION_POINTERS* pExPtrs)
         }
     }
 
-    std::wstring pathToCrashFile = L"\\\\?\\" + m_DumpsDir + L"\\" + m_AppName + ".dmp";
+    std::wstring pathToCrashFile = L"\\\\?\\" + m_DumpsDir + L"\\" + m_AppName + L".dmp";
     using convert_type = std::codecvt_utf8<wchar_t>;
     std::wstring_convert<convert_type, wchar_t> converter;
     std::string path = converter.to_bytes(pathToCrashFile);
-    CreateMiniDump(path.c_str(), pExPtrs, mdt);
+    CreateMiniDump(path.c_str(), pExPtrs, mdt, this);
 }
 
 bool WindowsCrashHandler::IsDataSectionNeeded(const WCHAR* pModuleName)
@@ -507,7 +506,7 @@ bool WindowsCrashHandler::IsDataSectionNeeded(const WCHAR* pModuleName)
     {
         return true;
     }
-    else if( wcsstr( szFileName, _T("Qt5") ) != 0 )
+    else if( wcsstr( szFileName, L"Qt5" ) != 0 )
     {
         return true;
     }
@@ -596,7 +595,6 @@ int WindowsCrashHandler::SetThreadExceptionHandlers()
     if (it != m_ThreadExceptionHandlers.end())
     {
         // handlers are already set for the thread    
-        crSetErrorMsg(_T("Can't install handlers for current thread twice."));
         return 1; // failed
     }
 

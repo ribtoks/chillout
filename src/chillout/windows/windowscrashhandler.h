@@ -18,7 +18,8 @@
 
 #include <functional>
 #include <mutex>
-#include <wstring>
+#include <string>
+#include <map>
 
 struct ThreadExceptionHandlers
 {
@@ -69,6 +70,8 @@ public:
 private:
     void Backtrace(EXCEPTION_POINTERS* pExPtrs);
     void CreateDump(EXCEPTION_POINTERS* pExPtrs);
+
+public:
     bool IsDataSectionNeeded(const WCHAR* pModuleName);
 
 public:
