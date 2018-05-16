@@ -1,4 +1,4 @@
-version: '{build}'
+version: 0.0.{build}-{branch}
 
 clone_folder: c:\projects\chillout
 
