@@ -28,8 +28,8 @@ before_build:
   - mkdir build
   - cd build
   - cmake --version
-  - cmake .. -G "NMake Makefiles"
   - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
+  - cmake .. -G "NMake Makefiles"
 
 build_script:
   - nmake.exe
