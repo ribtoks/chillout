@@ -62,6 +62,7 @@ private:
 
 public:
     void Setup(const std::wstring &appName, const std::wstring &dumpsDir);
+    void Teardown();
     void SetCrashDumpSize(CrashDumpSize size);
     void SetCrashCallback(const std::function<void()> &crashCallback);
     void SetBacktraceCallback(const std::function<void(const char const *)> &backtraceCallback);

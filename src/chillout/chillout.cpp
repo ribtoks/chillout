@@ -4,13 +4,19 @@
 #include "windows/windowscrashhandler.h"
 #endif
 
-void Chillout::init()
+void Chillout::init(const std::wstring &appName, const std::wstring &pathToDumpsDir)
 {
+    if (0 == m_InitCounter.fetch_add(1)) {
 #ifdef _WIN32
-    WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-    handler.Setup(L"", L"");
+        WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
+        handler.Setup(appName, pathToDumpsDir);
 #endif
+    }
 }
 
-
-
+void Chillout::deinit() {
+#ifdef _WIN32
+    WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
+    handler.Teardown();
+#endif
+}

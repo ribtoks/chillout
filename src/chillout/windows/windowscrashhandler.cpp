@@ -400,6 +400,11 @@ void WindowsCrashHandler::Setup(const std::wstring &appName, const std::wstring 
     SetProcessExceptionHandlers();
 }
 
+void WindowsCrashHandler::Teardown()
+{
+    UnsetProcessExceptionHandlers();
+}
+
 void WindowsCrashHandler::SetCrashDumpSize(CrashDumpSize size)
 {
     m_CrashDumpSize = size;

@@ -2,6 +2,8 @@
 #define CHILLOUT_H
 
 #include <functional>
+#include <string>
+#include <atomic>
 
 class Chillout {
 public:
@@ -13,7 +15,8 @@ public:
     }
 
 public:
-    void init();
+    void init(const std::wstring &appName, const std::wstring &pathToDumpsDir);
+    void deinit();
 
 private:
     Chillout() {}
@@ -23,6 +26,7 @@ private:
 private:
     std::function<void()> m_CrashHandler;
     std::function<void(const char const *)> m_StackEntryCallback;
+    std::atomic_int m_InitCounter = 0;
 };
 
 #endif // CHILLOUT_H
