@@ -18,6 +18,7 @@
 
 #include <functional>
 #include <mutex>
+#include <wstring>
 
 struct ThreadExceptionHandlers
 {
@@ -41,6 +42,13 @@ struct ThreadExceptionHandlers
 class WindowsCrashHandler
 {
 public:
+    enum CrashDumpSize {
+        CrashDumpSmall,
+        CrashDumpNormal,
+        CrashDumpFull
+    };
+    
+public:
     static WindowsCrashHandler& getInstance()
     {
         static WindowsCrashHandler instance; // Guaranteed to be destroyed.
@@ -52,17 +60,16 @@ private:
     WindowsCrashHandler();
 
 public:
-    void Initialize(const std::function<void()> &crashCallback, const std::function<void(const char const *)> &backtraceCallback);
+    void Setup();
+    void SetCrashCallback(const std::function<void()> &crashCallback);
+    void SetBacktraceCallback(const std::function<void(const char const *)> &backtraceCallback);
     void HandleCrash(EXCEPTION_POINTERS* pExPtrs);
 
 private:
     void Backtrace(EXCEPTION_POINTERS* pExPtrs);
     void CreateDump(EXCEPTION_POINTERS* pExPtrs);
+    bool IsDataSectionNeeded(const WCHAR* pModuleName);
 
-public:
-    void Lock() { m_CrashMutex.lock(); }
-    void Unlock() { m_CrashMutex.unlock(); }
-    
 public:
     // Sets exception handlers that work on per-process basis
     void SetProcessExceptionHandlers();
@@ -95,6 +102,8 @@ private:
     std::function<void()> m_CrashCallback;
     std::function<void(const char const *)> m_BacktraceCallback;
     std::mutex m_CrashMutex;
+    CrashDumpSize m_CrashDumpSize;
+    std::wstring m_AppName;
     
     std::map<DWORD, ThreadExceptionHandlers> m_ThreadExceptionHandlers;
     std::mutex m_ThreadHandlersMutex;

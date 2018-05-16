@@ -100,47 +100,6 @@ BOOL PreventSetUnhandledExceptionFilter()
     return bRet;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// This function determines whether we need data sections of the given module
-//
-
-bool IsDataSectionNeeded( const WCHAR* pModuleName ) {
-    // Check parameters
-
-    if( pModuleName == 0 )
-    {
-        _ASSERTE( _T("Parameter is null.") );
-        return false;
-    }
-
-    // Extract the module name
-
-    WCHAR szFileName[_MAX_FNAME] = L"";
-
-    _wsplitpath( pModuleName, NULL, NULL, szFileName, NULL );
-
-
-    // Compare the name with the list of known names and decide
-
-    // if contains "xpiks-tests-integration" in it's path
-    if( wcsstr( pModuleName, _T(STRINGIZE(APPNAME)) ) != 0 )
-    {
-        return true;
-    }
-    else if( wcsicmp( szFileName, L"ntdll" ) == 0 )
-    {
-        return true;
-    }
-    else if( wcsstr( szFileName, _T("Qt5") ) != 0 )
-    {
-        return true;
-    }
-
-    // Complete
-
-    return false;
-}
-
 BOOL CALLBACK MyMiniDumpCallback(
     PVOID                            pParam,
     const PMINIDUMP_CALLBACK_INPUT   pInput,
@@ -158,6 +117,7 @@ BOOL CALLBACK MyMiniDumpCallback(
         return FALSE;
 
     // Process the callbacks
+    WindowsCrashHandler *handler = (WindowsCrashHandler*)pParam;
 
     switch( pInput->CallbackType )
     {
@@ -178,21 +138,20 @@ BOOL CALLBACK MyMiniDumpCallback(
         case ModuleCallback:
         {
             // Are data sections available for this module ?
-
             if( pOutput->ModuleWriteFlags & ModuleWriteDataSeg )
             {
                 // Yes, they are, but do we need them?
 
-                if( !IsDataSectionNeeded( pInput->Module.FullPath ) )
+                if( !handler->IsDataSectionNeeded( pInput->Module.FullPath ) )
                 {
-                    wprintf( L"Excluding module data sections: %s \n", pInput->Module.FullPath );
-
                     pOutput->ModuleWriteFlags &= (~ModuleWriteDataSeg);
                 }
-                else
-                {
-                    wprintf( L"Including %s module data sections \n", pInput->Module.FullPath );
-                }
+            }
+
+            if( !(pOutput->ModuleWriteFlags & ModuleReferencedByMemory) ) 
+            {
+                // No, it does not - exclude it 
+                pOutput->ModuleWriteFlags &= (~ModuleWriteModule); 
             }
 
             bRet = TRUE;
@@ -228,7 +187,7 @@ BOOL CALLBACK MyMiniDumpCallback(
 
 }
 
-BOOL CreateMiniDump(EXCEPTION_POINTERS * pep)
+BOOL CreateMiniDump(EXCEPTION_POINTERS * pep, MINIDUMP_TYPE mdt, WindowsCrashHandler * wch)
 {
     BOOL rv = FALSE;
     // Open the file
@@ -249,14 +208,7 @@ BOOL CreateMiniDump(EXCEPTION_POINTERS * pep)
         MINIDUMP_CALLBACK_INFORMATION mci;
 
         mci.CallbackRoutine     = (MINIDUMP_CALLBACK_ROUTINE)MyMiniDumpCallback;
-        mci.CallbackParam       = 0;
-
-        MINIDUMP_TYPE mdt       = (MINIDUMP_TYPE)(MiniDumpWithPrivateReadWriteMemory |
-                                                  MiniDumpWithDataSegs |
-                                                  MiniDumpWithHandleData |
-                                                  MiniDumpWithFullMemoryInfo |
-                                                  MiniDumpWithThreadInfo |
-                                                  MiniDumpWithUnloadedModules );
+        mci.CallbackParam       = wch;
 
         rv = MiniDumpWriteDump( GetCurrentProcess(), GetCurrentProcessId(),
                                      hFile, mdt, (pep != 0) ? &mdei : 0, 0, &mci );
@@ -436,13 +388,20 @@ WindowsCrashHandler::WindowsCrashHandler()
     m_prevSigTERM = NULL;
 }
 
-void WindowsCrashHandler::Initialize(const std::function<void()> &crashCallback, const std::function<void(const char const *)> &backtraceCallback)
+void WindowsCrashHandler::Setup()
 {
-    m_CrashCallback = crashCallback;
-    m_BacktraceCallback = backtraceCallback;
-    
     EnableCrashingOnCrashes();
     SetProcessExceptionHandlers();
+}
+
+void WindowsCrashHandler::SetCrashCallback(const std::function<void()> &crashCallback)
+{
+    m_CrashCallback = crashCallback;
+}
+
+void WindowsCrashHandler::SetBacktraceCallback(const std::function<void(const char const *)> &backtraceCallback)
+{
+    m_BacktraceCallback = backtraceCallback;
 }
 
 void WindowsCrashHandler::HandleCrash(EXCEPTION_POINTERS* pExPtrs)
@@ -451,8 +410,11 @@ void WindowsCrashHandler::HandleCrash(EXCEPTION_POINTERS* pExPtrs)
 
     Backtrace(pExPtrs);
     CreateDump(pExPtrs);
-    
-    m_CrashCallback();
+
+    if (m_CrashCallback)
+    {
+        m_CrashCallback();   
+    }
     
     // Terminate process
     TerminateProcess(GetCurrentProcess(), 1);
@@ -460,13 +422,81 @@ void WindowsCrashHandler::HandleCrash(EXCEPTION_POINTERS* pExPtrs)
 
 void WindowsCrashHandler::Backtrace(EXCEPTION_POINTERS* pExPtrs)
 {
-    StackWalkerWithCallback sw(m_BacktraceCallback);
-    sw.ShowCallstack(GetCurrentThread(), pExPtrs->ContextRecord);
+    if (m_BacktraceCallback)
+    {
+        StackWalkerWithCallback sw(m_BacktraceCallback);
+        sw.ShowCallstack(GetCurrentThread(), pExPtrs->ContextRecord);
+    }
 }
 
 void WindowsCrashHandler::CreateDump(EXCEPTION_POINTERS* pExPtrs)
 {
-    CreateMiniDump(pExPtrs);
+    MINIDUMP_TYPE mdt = (MINIDUMP_TYPE)(MiniDumpNormal);
+
+    switch (m_CrashDumpSize)
+    {
+        case CrashDumpSmall:
+            mdt |= (MiniDumpScanMemory |
+                    MiniDumpWithThreadInfo)
+            break;
+        case CrashDumpNormal:
+        {
+            mdt |= (MiniDumpScanMemory |
+                    MiniDumpWithHandleData |
+                    MiniDumpWithThreadInfo |
+                    MiniDumpWithIndirectlyReferencedMemory);
+            break;
+        }        
+        case CrashDumpFull:
+        {
+            mdt |= (MiniDumpWithPrivateReadWriteMemory |
+                    MiniDumpWithDataSegs |
+                    MiniDumpWithHandleData |
+                    MiniDumpWithFullMemoryInfo |
+                    MiniDumpScanMemory |
+                    MiniDumpWithThreadInfo |
+                    MiniDumpWithUnloadedModules);
+            break;
+        }
+    }
+
+    CreateMiniDump(pExPtrs, mdt);
+}
+
+bool WindowsCrashHandler::IsDataSectionNeeded(const WCHAR* pModuleName)
+{
+    if( pModuleName == 0 )
+    {
+        _ASSERTE( _T("Parameter is null.") );
+        return false;
+    }
+
+    // Extract the module name
+
+    WCHAR szFileName[_MAX_FNAME] = L"";
+
+    _wsplitpath( pModuleName, NULL, NULL, szFileName, NULL );
+
+
+    // Compare the name with the list of known names and decide
+
+    // if contains app name in its path
+    if( wcsstr( pModuleName, pAppName ) != 0 )
+    {
+        return true;
+    }
+    else if( wcsicmp( szFileName, L"ntdll" ) == 0 )
+    {
+        return true;
+    }
+    else if( wcsstr( szFileName, _T("Qt5") ) != 0 )
+    {
+        return true;
+    }
+
+    // Complete
+
+    return false;
 }
 
 void WindowsCrashHandler::SetProcessExceptionHandlers()
