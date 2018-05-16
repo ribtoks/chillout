@@ -13,6 +13,7 @@ platform:
 - x64
 
 before_build:
+ - git submodule update --init --recursive
  - mkdir build
  - cd build
  - cmake --version
