@@ -93,7 +93,7 @@ public:
 
 private:
     std::function<void()> m_CrashCallback;
-    const std::function<void(const char const *)> &m_BacktraceCallback;
+    std::function<void(const char const *)> m_BacktraceCallback;
     std::mutex m_CrashMutex;
     
     std::map<DWORD, ThreadExceptionHandlers> m_ThreadExceptionHandlers;
