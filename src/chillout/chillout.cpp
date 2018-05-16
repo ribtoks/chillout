@@ -1,15 +1,16 @@
 #include "chillout.h"
 
 #ifdef _WIN32
-#include "windows/StackWalker.h"
-
+#include "windows/windowscrashhandler.h"
 #endif
 
-
-void Chillout::init(const std::function<void()> &handler,
-                    const std::function<void(const char const *)> &callback)
+void Chillout::init()
 {
-    m_CrashHandler = handler;
-    m_StackEntryCallback = callback;
+#ifdef _WIN32
+    WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
+    handler.Setup();
+#endif
 }
+
+
 

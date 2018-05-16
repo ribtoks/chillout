@@ -481,7 +481,7 @@ bool WindowsCrashHandler::IsDataSectionNeeded(const WCHAR* pModuleName)
     // Compare the name with the list of known names and decide
 
     // if contains app name in its path
-    if( wcsstr( pModuleName, pAppName ) != 0 )
+    if( wcsstr( pModuleName, m_AppName.c_str() ) != 0 )
     {
         return true;
     }

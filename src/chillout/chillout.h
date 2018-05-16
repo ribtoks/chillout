@@ -13,10 +13,10 @@ public:
     }
 
 public:
-    void init(const std::function<void()> &handler,
-              const std::function<void(const char const *)> &stackEntryCallback);
+    void init();
 
 private:
+    Chillout() {}
     Chillout(Chillout const&);
     void operator=(Chillout const&);
 
