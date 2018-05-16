@@ -25,12 +25,12 @@ matrix:
   fast_finish: true
 
 before_build:
-- cmd: |-
+  - cmd: |-
     mkdir build
     cd build
     cmake --version
     cmake .. -G "NMake Makefiles"
-- cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
+  - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
 
 build_script:
   - nmake.exe
