@@ -2,11 +2,7 @@ cmake_minimum_required(VERSION 3.6)
 
 project(chillout_tests_project)
 
-set(SOURCES tests_main.cpp tests_source.h tests_source.cpp)
-
-if(WIN32)
-  set(SOURCES ${SOURCES} tests_crashes_win.cpp tests_recovery_win.cpp)
-endif()
+set(SOURCES tests_main.cpp tests_source.h tests_source.cpp tests_crashes.cpp tests_recovery.cpp)
 
 add_executable(chillout_test ${SOURCES})
 
