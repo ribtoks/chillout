@@ -217,10 +217,10 @@ BOOL CreateMiniDump(LPCTSTR lpFileName, EXCEPTION_POINTERS * pep, MINIDUMP_TYPE 
         rv = MiniDumpWriteDump( GetCurrentProcess(), GetCurrentProcessId(),
                                      hFile, mdt, (pep != 0) ? &mdei : 0, 0, &mci );
 
-        if( !rv )
-            _tprintf( _T("MiniDumpWriteDump failed. Error: %u \n"), GetLastError() );
-        else
-            _tprintf( _T("Minidump created.\n") );
+        // if( !rv )
+        //     _tprintf( _T("MiniDumpWriteDump failed. Error: %u \n"), GetLastError() );
+        // else
+        //     _tprintf( _T("Minidump created.\n") );
 
         // Close the file
 
@@ -229,7 +229,7 @@ BOOL CreateMiniDump(LPCTSTR lpFileName, EXCEPTION_POINTERS * pep, MINIDUMP_TYPE 
     }
     else
     {
-        _tprintf( _T("CreateFile failed. Error: %u \n"), GetLastError() );
+        //_tprintf( _T("CreateFile failed. Error: %u \n"), GetLastError() );
     }
 
     fflush(stdout);
@@ -325,8 +325,6 @@ static LONG __stdcall CrashHandlerExceptionFilter(EXCEPTION_POINTERS* pExPtrs)
   __asm mov esp,eax;
   }
 #endif
-
-  printf("UNHANDLED EXCEPTION FILTER\r\n");
 
   DoHandleCrash(pExPtrs);
 
@@ -591,7 +589,6 @@ int WindowsCrashHandler::SetThreadExceptionHandlers()
     std::lock_guard<std::mutex> guard(m_ThreadHandlersMutex);
 
     auto it = m_ThreadExceptionHandlers.find(dwThreadId);
-
     if (it != m_ThreadExceptionHandlers.end())
     {
         // handlers are already set for the thread    
@@ -635,7 +632,6 @@ int WindowsCrashHandler::UnsetThreadExceptionHandlers()
     std::lock_guard<std::mutex> guard(m_ThreadHandlersMutex);
 
     auto it = m_ThreadExceptionHandlers.find(dwThreadId);
-
     if (it == m_ThreadExceptionHandlers.end())
     {
         return 1;
@@ -662,7 +658,6 @@ int WindowsCrashHandler::UnsetThreadExceptionHandlers()
     m_ThreadExceptionHandlers.erase(it);
 
     return 0;
-
 }
 
 // CRT terminate() call handler
@@ -715,7 +710,6 @@ void __cdecl WindowsCrashHandler::PureCallHandler()
     // Terminate process
     TerminateProcess(GetCurrentProcess(), 1);
 }
-
 
 // CRT invalid parameter handler
 void __cdecl WindowsCrashHandler::InvalidParameterHandler(
