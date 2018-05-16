@@ -11,8 +11,10 @@ target_include_directories(chillout_test PRIVATE ${GTEST_SOURCE_DIR}/googletest/
 
 # GTest needs threading support
 
-# stackwalker stuff
-target_link_libraries(chillout_test Advapi32 DbgHelp)
+if(WIN32)
+  # stackwalker stuff
+  target_link_libraries(chillout_test Advapi32 DbgHelp)
+endif()
 
 target_link_libraries(chillout_test gtest_main)
 target_link_libraries(chillout_test chillout)
