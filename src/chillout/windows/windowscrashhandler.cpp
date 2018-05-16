@@ -395,6 +395,11 @@ void WindowsCrashHandler::Setup(const std::wstring &appName, const std::wstring 
 {
     m_AppName = appName;
     m_DumpsDir = dumpsDir;
+
+    if (!m_DumpsDir.empty() &&
+        m_DumpsDir[m_DumpsDir.size() - 1] == L'\\') {
+        m_DumpsDir.pop_back();
+    }
     
     EnableCrashingOnCrashes();
     SetProcessExceptionHandlers();

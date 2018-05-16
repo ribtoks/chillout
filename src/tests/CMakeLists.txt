@@ -6,6 +6,15 @@ set(SOURCES tests_main.cpp tests_source.h tests_source.cpp tests_crashes.cpp tes
 
 add_executable(chillout_test ${SOURCES})
 
+FILE(TO_NATIVE_PATH ${CMAKE_CURRENT_LIST_DIR} CRASH_DUMPS_ROOT)
+
+if(WIN32)
+  STRING(REGEX REPLACE "\\\\" "\\\\\\\\" CRASH_DUMPS_ROOT ${CRASH_DUMPS_ROOT} )
+endif()
+
+add_definitions(-DCRASHDUMPSDIR=${CRASH_DUMPS_ROOT})
+message("Crash dumps root: ${CRASH_DUMPS_ROOT}")
+
 target_include_directories(chillout_test PRIVATE ${CHILLOUT_SOURCE_DIR})
 target_include_directories(chillout_test PRIVATE ${GTEST_SOURCE_DIR}/googletest/include)
 

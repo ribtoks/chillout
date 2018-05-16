@@ -1,14 +1,21 @@
 #include <float.h>
 #include <gtest/gtest.h>
 #include <chillout.h>
+#include <string>
 #include "tests_source.h"
+
+#define STRINGIZE_(x) #x
+#define STRINGIZE(x) STRINGIZE_(x)
+
+#define WIDEN(quote) WIDEN2(quote)
+#define WIDEN2(quote) L##quote
 
 class RecoveryTest : public ::testing::Test
 {
   protected:
     virtual void SetUp() {
         auto &chillout = Chillout::getInstance();
-        chillout.init(L"chillout_test", L".");
+        chillout.init(L"chillout_test", WIDEN(STRINGIZE(CRASHDUMPSDIR)));
     }
 
     virtual void TearDown() {
