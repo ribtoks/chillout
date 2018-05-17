@@ -568,7 +568,7 @@ void WindowsCrashHandler::SetProcessExceptionHandlers()
     // Disable all of the possible ways Windows conspires to make automated
     // testing impossible.
     ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
-# if defined(_MSC_VER)
+
     ::_set_error_mode(_OUT_TO_STDERR);
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
     _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
@@ -576,7 +576,6 @@ void WindowsCrashHandler::SetProcessExceptionHandlers()
     _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
     _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
     _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
-# endif
 
     // Catch an abnormal program termination
     m_prevSigABRT = signal(SIGABRT, SigabrtHandler);
