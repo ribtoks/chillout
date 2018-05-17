@@ -565,10 +565,10 @@ void WindowsCrashHandler::SetProcessExceptionHandlers()
 #endif
     
     _CrtSetReportHook2(_CRT_RPTHOOK_INSTALL, CrtReportHook);
-    if ( !IsDebuggerPresent() ) {
-        _CrtSetReportMode( _CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG );
-        _CrtSetReportFile( _CRT_ASSERT, _CRTDBG_FILE_STDERR );
-    }
+    _CrtSetReportMode( _CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG );
+    _CrtSetReportFile( _CRT_ASSERT, _CRTDBG_FILE_STDERR );
+    _CrtSetReportMode( _CRT_ERROR, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG );
+    _CrtSetReportFile( _CRT_ERROR, _CRTDBG_FILE_STDERR );
 
     // Catch an abnormal program termination
     m_prevSigABRT = signal(SIGABRT, SigabrtHandler);
