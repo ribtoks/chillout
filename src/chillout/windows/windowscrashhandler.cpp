@@ -559,8 +559,14 @@ void WindowsCrashHandler::SetProcessExceptionHandlers()
 
     // Set up C++ signal handlers
 
+#if _MSC_VER>=1400
     _set_abort_behavior(0, _WRITE_ABORT_MSG);
     _set_abort_behavior(_CALL_REPORTFAULT, _CALL_REPORTFAULT);
+#endif
+
+    //_set_error_mode(_OUT_TO_STDERR);
+    // Disable the message box for assertions.
+    //_CrtSetReportMode(_CRT_ASSERT, 0);
 
     // Catch an abnormal program termination
     m_prevSigABRT = signal(SIGABRT, SigabrtHandler);

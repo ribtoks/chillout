@@ -92,6 +92,7 @@ public:
     static void __cdecl PureCallHandler();
 #if _MSC_VER>=1300 && _MSC_VER<1400
 	// Buffer overrun handler (deprecated in newest versions of Visual C++).
+    // Since CRT 8.0, you can't intercept the buffer overrun errors in your code. When a buffer overrun is detected, CRT invokes Dr. Watson directly
     static void __cdecl SecurityHandler(int code, void *x);
 #endif
 
