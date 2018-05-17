@@ -564,9 +564,11 @@ void WindowsCrashHandler::SetProcessExceptionHandlers()
     _set_abort_behavior(_CALL_REPORTFAULT, _CALL_REPORTFAULT);
 #endif
 
-    //_set_error_mode(_OUT_TO_STDERR);
-    // Disable the message box for assertions.
-    //_CrtSetReportMode(_CRT_ASSERT, 0);
+    // redirect crt error dialog to stderr
+    if ( !IsDebuggerPresent() ) {
+        _CrtSetReportMode( _CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG );
+        _CrtSetReportFile( _CRT_ASSERT, _CRTDBG_FILE_STDERR );
+    }
 
     // Catch an abnormal program termination
     m_prevSigABRT = signal(SIGABRT, SigabrtHandler);
