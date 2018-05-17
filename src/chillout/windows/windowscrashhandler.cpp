@@ -702,7 +702,7 @@ int __cdecl WindowsCrashHandler::CrtReportHook(int nReportType, char* szMsg, int
     switch (nReportType) {
         case _CRT_ASSERT:
         {
-            // nRet = TRUE; // Always stop for this type of report break;
+            nRet = TRUE; // Always stop for this type of report break;
         }
         case _CRT_WARN: { break; }
         case _CRT_ERROR: { break; }
