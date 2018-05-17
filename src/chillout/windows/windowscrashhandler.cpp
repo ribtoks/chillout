@@ -697,7 +697,7 @@ int WindowsCrashHandler::UnsetThreadExceptionHandlers()
     return 0;
 }
 
-static int __cdecl WindowsCrashHandler::CrtReportHook(int nReportType, char* szMsg, int* pnRet) {
+int __cdecl WindowsCrashHandler::CrtReportHook(int nReportType, char* szMsg, int* pnRet) {
     int nRet = FALSE;
     switch (nReportType) {
         case _CRT_ASSERT:
