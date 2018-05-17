@@ -568,9 +568,7 @@ void WindowsCrashHandler::SetProcessExceptionHandlers()
     // testing impossible.
 
 #if defined(_MSC_VER)
-    _CrtSetReportHook2(_CRT_RPTHOOK_INSTALL, CrtReportHook);
-
-    ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+    //::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
 
     ::_set_error_mode(_OUT_TO_STDERR);
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
@@ -579,6 +577,8 @@ void WindowsCrashHandler::SetProcessExceptionHandlers()
     _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
     _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
     _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+
+    _CrtSetReportHook2(_CRT_RPTHOOK_INSTALL, CrtReportHook);
 #endif
 
     // Catch an abnormal program termination
@@ -708,20 +708,7 @@ int WindowsCrashHandler::UnsetThreadExceptionHandlers()
 }
 
 int __cdecl WindowsCrashHandler::CrtReportHook(int nReportType, char* szMsg, int* pnRet) {
-    // report is handled in this routine
-    int nRet = TRUE;
-    /*switch (nReportType) {
-        case _CRT_ASSERT: { break; }
-        case _CRT_WARN: { break; }
-        case _CRT_ERROR: { break; }
-        default: { break; }
-        }*/
-
-    if (pnRet) {
-        *pnRet = 0;
-    }
-    
-    return nRet; 
+    return TRUE;
 }
 
 // CRT terminate() call handler
