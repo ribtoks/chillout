@@ -32,3 +32,22 @@ TEST_F (RecoveryTest, AccessViolationTest) {
     ASSERT_EXIT(AccessViolation(), ::testing::ExitedWithCode(1), "");
 }
 
+TEST_F (RecoveryTest, InvalidParameterTest) {
+    ASSERT_EXIT(InvalidParameter(), ::testing::ExitedWithCode(1), "");
+}
+
+TEST_F (RecoveryTest, SigillTest) {
+    ASSERT_EXIT(RaiseSigill(), ::testing::ExitedWithCode(1), "");
+}
+
+TEST_F (RecoveryTest, SigsegvTest) {
+    ASSERT_EXIT(RaiseSigsegv(), ::testing::ExitedWithCode(1), "");
+}
+
+TEST_F (RecoveryTest, SigtermTest) {
+    ASSERT_EXIT(RaiseSigterm(), ::testing::ExitedWithCode(1), "");
+}
+
+TEST_F (RecoveryTest, ThrowExceptionTest) {
+    ASSERT_EXIT(ThrowException(), ::testing::ExitedWithCode(1), "");
+}

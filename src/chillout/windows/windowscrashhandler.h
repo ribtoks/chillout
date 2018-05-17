@@ -90,6 +90,10 @@ public:
     static void __cdecl UnexpectedHandler();
 
     static void __cdecl PureCallHandler();
+#if _MSC_VER>=1300 && _MSC_VER<1400
+	// Buffer overrun handler (deprecated in newest versions of Visual C++).
+    static void __cdecl SecurityHandler(int code, void *x);
+#endif
 
     static void __cdecl InvalidParameterHandler(const wchar_t* expression,
         const wchar_t* function, const wchar_t* file, unsigned int line, uintptr_t pReserved);

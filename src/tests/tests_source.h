@@ -22,5 +22,10 @@ public:
 };
 
 void AccessViolation();
+void InvalidParameter();
+void RaiseSigill();
+void RaiseSigsegv();
+void RaiseSigterm();
+void ThrowException();
 
 #endif // TESTS_SOURCE

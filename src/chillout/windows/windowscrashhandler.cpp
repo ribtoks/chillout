@@ -403,6 +403,7 @@ void WindowsCrashHandler::Setup(const std::wstring &appName, const std::wstring 
     
     EnableCrashingOnCrashes();
     SetProcessExceptionHandlers();
+    SetThreadExceptionHandlers();
 }
 
 void WindowsCrashHandler::Teardown()
@@ -545,6 +546,12 @@ void WindowsCrashHandler::SetProcessExceptionHandlers()
 #if _MSC_VER>=1400
     // Catch invalid parameter exceptions.
     m_prevInvpar = _set_invalid_parameter_handler(InvalidParameterHandler);
+#endif
+
+#if _MSC_VER>=1300 && _MSC_VER<1400    
+    // Catch buffer overrun exceptions
+    // The _set_security_error_handler is deprecated in VC8 C++ run time library
+    m_prevSec = _set_security_error_handler(SecurityHandler);
 #endif
 
     // Set up C++ signal handlers
@@ -720,6 +727,25 @@ void __cdecl WindowsCrashHandler::PureCallHandler()
     // Terminate process
     TerminateProcess(GetCurrentProcess(), 1);
 }
+
+// CRT buffer overrun handler. Available in CRT 7.1 only
+#if _MSC_VER>=1300 && _MSC_VER<1400
+void __cdecl WindowsCrashHandler::SecurityHandler(int code, void *x)
+{
+    // Security error (buffer overrun).
+
+    code;
+    x;
+
+    EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
+    GetExceptionPointers(CR_CPP_SECURITY_ERROR, &pExceptionPtrs);
+
+    DoHandleCrash(pExceptionPtrs);
+
+    // Terminate process
+    TerminateProcess(GetCurrentProcess(), 1);
+}
+#endif
 
 // CRT invalid parameter handler
 void __cdecl WindowsCrashHandler::InvalidParameterHandler(

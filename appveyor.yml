@@ -9,6 +9,9 @@ configuration:
   - Debug
 #- Release
 
+skip_commits:
+  message: /.*\[ci skip\]/       # Regex for matching commit message
+
 platform:
 - x64
 
