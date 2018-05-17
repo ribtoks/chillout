@@ -564,11 +564,12 @@ void WindowsCrashHandler::SetProcessExceptionHandlers()
     _set_abort_behavior(_CALL_REPORTFAULT, _CALL_REPORTFAULT);
 #endif
 
-    // redirect crt error dialog to stderr
-    if ( !IsDebuggerPresent() ) {
-        _CrtSetReportMode( _CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG );
-        _CrtSetReportFile( _CRT_ASSERT, _CRTDBG_FILE_STDERR );
-    }
+    
+    _CrtSetReportHook2(_CRT_RPTHOOK_INSTALL, CrtReportHook);
+    //if ( !IsDebuggerPresent() ) {
+    //    _CrtSetReportMode( _CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG );
+    //    _CrtSetReportFile( _CRT_ASSERT, _CRTDBG_FILE_STDERR );
+    //}
 
     // Catch an abnormal program termination
     m_prevSigABRT = signal(SIGABRT, SigabrtHandler);
@@ -615,6 +616,7 @@ void WindowsCrashHandler::UnsetProcessExceptionHandlers()
 
     m_oldSehHandler = NULL;
 
+    _CrtSetReportHook2(_CRT_RPTHOOK_REMOVE, CrtReportHook);
 }
 
 int WindowsCrashHandler::SetThreadExceptionHandlers()
@@ -693,6 +695,25 @@ int WindowsCrashHandler::UnsetThreadExceptionHandlers()
     m_ThreadExceptionHandlers.erase(it);
 
     return 0;
+}
+
+static int __cdecl WindowsCrashHandler::CrtReportHook(int nReportType, char* szMsg, int* pnRet) {
+    int nRet = FALSE;
+    switch (nReportType) {
+        case _CRT_ASSERT:
+        {
+            // nRet = TRUE; // Always stop for this type of report break;
+        }
+        case _CRT_WARN: { break; }
+        case _CRT_ERROR: { break; }
+        default: { break; }
+    }
+
+    if (pnRet) {
+        *pnRet = 0;
+    }
+    
+    return nRet; 
 }
 
 // CRT terminate() call handler

@@ -86,6 +86,8 @@ public:
 
     /* Exception handler functions. */
 
+    static int __cdecl CrtReportHook(int nReportType, char* szMsg, int* pnRet);
+    
     static void __cdecl TerminateHandler();
     static void __cdecl UnexpectedHandler();
 
