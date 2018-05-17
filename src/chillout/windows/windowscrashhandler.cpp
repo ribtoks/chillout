@@ -563,7 +563,6 @@ void WindowsCrashHandler::SetProcessExceptionHandlers()
     _set_abort_behavior(0, _WRITE_ABORT_MSG);
     _set_abort_behavior(_CALL_REPORTFAULT, _CALL_REPORTFAULT);
 #endif
-
     
     _CrtSetReportHook2(_CRT_RPTHOOK_INSTALL, CrtReportHook);
     if ( !IsDebuggerPresent() ) {
@@ -698,16 +697,15 @@ int WindowsCrashHandler::UnsetThreadExceptionHandlers()
 }
 
 int __cdecl WindowsCrashHandler::CrtReportHook(int nReportType, char* szMsg, int* pnRet) {
-    int nRet = FALSE;
-    switch (nReportType) {
-        case _CRT_ASSERT:
-        {
+    int nRet = TRUE;
+    /*switch (nReportType) {
+        case _CRT_ASSERT: {
             nRet = TRUE; // Always stop for this type of report break;
         }
         case _CRT_WARN: { break; }
         case _CRT_ERROR: { break; }
         default: { break; }
-    }
+        }*/
 
     if (pnRet) {
         *pnRet = 0;
