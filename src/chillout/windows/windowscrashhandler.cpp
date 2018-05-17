@@ -331,17 +331,20 @@ static LONG __stdcall CrashHandlerExceptionFilter(EXCEPTION_POINTERS* pExPtrs)
   return EXCEPTION_CONTINUE_SEARCH;
 }
 
-static void InitUnhandledExceptionFilter()
+static LPTOP_LEVEL_EXCEPTION_FILTER InitUnhandledExceptionFilter()
 {
+    LPTOP_LEVEL_EXCEPTION_FILTER filter = NULL;
   if (s_bUnhandledExeptionFilterSet == FALSE)
   {
     // set global exception handler (for handling all unhandled exceptions)
-    SetUnhandledExceptionFilter(CrashHandlerExceptionFilter);
+    filter = SetUnhandledExceptionFilter(CrashHandlerExceptionFilter);
 #if defined _M_X64 || defined _M_IX86
     PreventSetUnhandledExceptionFilter();
 #endif
     s_bUnhandledExeptionFilterSet = TRUE;
   }
+
+  return filter;
 }
 
 // The following code is intended to fix the issue with 32-bit applications in 64-bit environment.
@@ -528,7 +531,7 @@ bool WindowsCrashHandler::IsDataSectionNeeded(const WCHAR* pModuleName)
 void WindowsCrashHandler::SetProcessExceptionHandlers()
 {
     // SetErrorMode(SEM_FAILCRITICALERRORS);
-    InitUnhandledExceptionFilter();
+    m_oldSehHandler = InitUnhandledExceptionFilter();
 
 #if _MSC_VER>=1300
     // Catch pure virtual function calls.
@@ -596,7 +599,14 @@ void WindowsCrashHandler::UnsetProcessExceptionHandlers()
         signal(SIGINT, m_prevSigINT);     
 
     if(m_prevSigTERM!=NULL)
-        signal(SIGTERM, m_prevSigTERM);    
+        signal(SIGTERM, m_prevSigTERM);
+
+    // Reset SEH exception filter
+    if (m_oldSehHandler)
+        SetUnhandledExceptionFilter(m_oldSehHandler);
+
+    m_oldSehHandler = NULL;
+
 }
 
 int WindowsCrashHandler::SetThreadExceptionHandlers()
