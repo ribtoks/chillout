@@ -392,6 +392,8 @@ WindowsCrashHandler::WindowsCrashHandler()
     m_prevSigTERM = NULL;
 
     m_CrashDumpSize = CrashDumpNormal;
+
+    m_crtReportHook = NULL;
 }
 
 void WindowsCrashHandler::Setup(const std::wstring &appName, const std::wstring &dumpsDir)
@@ -557,30 +559,30 @@ void WindowsCrashHandler::SetProcessExceptionHandlers()
     m_prevSec = _set_security_error_handler(SecurityHandler);
 #endif
 
-    // Set up C++ signal handlers
-
 #if _MSC_VER>=1400
     _set_abort_behavior(0, _WRITE_ABORT_MSG);
     _set_abort_behavior(_CALL_REPORTFAULT, _CALL_REPORTFAULT);
 #endif
 
+#if defined(_MSC_VER)
     // Disable all of the possible ways Windows conspires to make automated
     // testing impossible.
+    
+    // ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+    // ::_set_error_mode(_OUT_TO_STDERR);
 
-#if defined(_MSC_VER)
-    //::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+    // _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+    // _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+    // _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+    // _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+    // _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+    // _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
 
-    ::_set_error_mode(_OUT_TO_STDERR);
-    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
-    _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
-    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
-    _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
-    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
-    _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
-
-    _CrtSetReportHook2(_CRT_RPTHOOK_INSTALL, CrtReportHook);
+    m_crtReportHook = _CrtSetReportHook(CrtReportHook);
 #endif
 
+    // Set up C++ signal handlers
+    
     // Catch an abnormal program termination
     m_prevSigABRT = signal(SIGABRT, SigabrtHandler);
 
@@ -626,7 +628,8 @@ void WindowsCrashHandler::UnsetProcessExceptionHandlers()
 
     m_oldSehHandler = NULL;
 
-    _CrtSetReportHook2(_CRT_RPTHOOK_REMOVE, CrtReportHook);
+    if (m_crtReportHook)
+        _CrtSetReportHook(m_crtReportHook);
 }
 
 int WindowsCrashHandler::SetThreadExceptionHandlers()
@@ -708,6 +711,19 @@ int WindowsCrashHandler::UnsetThreadExceptionHandlers()
 }
 
 int __cdecl WindowsCrashHandler::CrtReportHook(int nReportType, char* szMsg, int* pnRet) {
+    switch (nReportType)
+    {
+        case _CRT_WARN:
+        case _CRT_ERROR:
+        case _CRT_ASSERT:
+            // Put some debug code here
+            break;
+    }
+    
+    if (pnRet) {
+        *pnRet = 1;
+    }
+    
     return TRUE;
 }
 
@@ -912,6 +928,8 @@ void WindowsCrashHandler::SigtermHandler(int)
     // Terminate process
     TerminateProcess(GetCurrentProcess(), 1);
 }
+
+
 
 
 

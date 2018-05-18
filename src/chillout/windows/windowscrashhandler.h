@@ -121,6 +121,8 @@ private:
     std::map<DWORD, ThreadExceptionHandlers> m_ThreadExceptionHandlers;
     std::mutex m_ThreadHandlersMutex;
 
+    _CRT_REPORT_HOOK m_crtReportHook;
+    
     // Previous SEH exception filter.
     LPTOP_LEVEL_EXCEPTION_FILTER  m_oldSehHandler;  
 

@@ -10,9 +10,13 @@ TEST (CrashTest, AccessViolationTest) {
     ASSERT_DEATH(AccessViolation(), "");
 }
 
-TEST (CrashTest, InvalidParameterTest) {
-    ASSERT_DEATH(InvalidParameter(), "");
-}
+// This test is disabled because of CRT assert window.
+// This window could be disabled for a process but
+// gtest starts new process for DEATH tests so it
+// makes no sense to run it.
+// TEST (CrashTest, InvalidParameterTest) {
+//     ASSERT_DEATH(InvalidParameter(), "");
+// }
 
 TEST (CrashTest, SigillTest) {
     ASSERT_DEATH(RaiseSigill(), "");
@@ -27,5 +31,5 @@ TEST (CrashTest, SigtermTest) {
 }
 
 TEST (CrashTest, ThrowExceptionTest) {
-    ASSERT_DEATH(ThrowException(), "");
+    ASSERT_ANY_THROW(ThrowException());
 }
