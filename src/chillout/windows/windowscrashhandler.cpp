@@ -59,7 +59,8 @@ class StackWalkerWithCallback : public StackWalker
 {
 public:
     StackWalkerWithCallback(const std::function<void(const char const *)> &callback):
-        StackWalker(RetrieveVerbose | SymBuildPath)
+        StackWalker(RetrieveVerbose | SymBuildPath),
+        m_Callback(callback)
     { }
     
 protected:
@@ -414,6 +415,7 @@ void WindowsCrashHandler::Setup(const std::wstring &appName, const std::wstring 
 void WindowsCrashHandler::Teardown()
 {
     UnsetProcessExceptionHandlers();
+    UnsetThreadExceptionHandlers();
 }
 
 void WindowsCrashHandler::SetCrashDumpSize(CrashDumpSize size)
@@ -788,7 +790,9 @@ void __cdecl WindowsCrashHandler::SecurityHandler(int code, void *x)
     x;
 
     EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
-    GetExceptionPointers(CR_CPP_SECURITY_ERROR, &pExceptionPtrs);
+    if (pExceptionPtrs == nullptr) {
+        GetExceptionPointers(CR_CPP_SECURITY_ERROR, &pExceptionPtrs);
+    }
 
     DoHandleCrash(pExceptionPtrs);
 
@@ -905,6 +909,9 @@ void WindowsCrashHandler::SigsegvHandler(int)
     // Invalid storage access (SIGSEGV)
 
     PEXCEPTION_POINTERS pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
+    if (pExceptionPtrs == nullptr) {
+        GetExceptionPointers(CR_CPP_SIGSEGV, &pExceptionPtrs);
+    }
 
     DoHandleCrash(pExceptionPtrs);
 

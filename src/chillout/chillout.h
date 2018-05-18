@@ -17,6 +17,7 @@ public:
 public:
     void init(const std::wstring &appName, const std::wstring &pathToDumpsDir);
     void deinit();
+    void setBacktraceCallback(const std::function<void(const char const *)> &callback);
 
 private:
     Chillout() {}
@@ -24,8 +25,8 @@ private:
     void operator=(Chillout const&);
 
 private:
-    std::function<void()> m_CrashHandler;
-    std::function<void(const char const *)> m_StackEntryCallback;
+    //std::function<void()> m_CrashHandler;
+    //std::function<void(const char const *)> m_BacktraceCallback;
     std::atomic_int m_InitCounter = 0;
 };
 
