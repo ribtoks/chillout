@@ -442,10 +442,10 @@ void WindowsCrashHandler::SetBacktraceCallback(const std::function<void(const ch
 void WindowsCrashHandler::HandleCrash(EXCEPTION_POINTERS* pExPtrs)
 {
     std::lock_guard<std::mutex> guard(m_CrashMutex);
-
+    
     Backtrace(pExPtrs);
     CreateDump(pExPtrs);
-
+    
     if (m_CrashCallback)
     {
         m_CrashCallback();   

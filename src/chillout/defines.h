@@ -3,4 +3,4 @@
 
 #define CHILLOUT_EXIT_CODE 3
 
-#endif
+#endif // DEFINES_H

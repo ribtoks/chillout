@@ -12,7 +12,7 @@
 #define WIDEN(quote) WIDEN2(quote)
 #define WIDEN2(quote) L##quote
 
-void backtrace(const char const * stackEntry) {
+void chilltrace(const char const * stackEntry) {
     if (stackEntry) {
         fprintf(stderr, "chilltrace:  %s", stackEntry);
     }
@@ -20,11 +20,14 @@ void backtrace(const char const * stackEntry) {
 
 class RecoveryTest : public ::testing::Test
 {
-  protected:
+protected:
     virtual void SetUp() {
         auto &chillout = Chillout::getInstance();
         chillout.init(L"chillout_test", WIDEN(STRINGIZE(CRASHDUMPSDIR)));
-        chillout.setBacktraceCallback(backtrace);
+        chillout.setBacktraceCallback(chilltrace);
+        chillout.setCrashCallback([](){
+                fprintf(stdout, "Crash callback");
+            });
     }
 
     virtual void TearDown() {

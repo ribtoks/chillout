@@ -27,3 +27,10 @@ void Chillout::setBacktraceCallback(const std::function<void(const char const *)
     handler.SetBacktraceCallback(callback);
 #endif
 }
+
+void Chillout::setCrashCallback(const std::function<void()> &callback) {
+#ifdef _WIN32
+    WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
+    handler.SetCrashCallback(callback);
+#endif
+}

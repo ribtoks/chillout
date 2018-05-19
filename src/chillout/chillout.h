@@ -18,6 +18,7 @@ public:
     void init(const std::wstring &appName, const std::wstring &pathToDumpsDir);
     void deinit();
     void setBacktraceCallback(const std::function<void(const char const *)> &callback);
+    void setCrashCallback(const std::function<void()> &callback);
 
 private:
     Chillout() {}
