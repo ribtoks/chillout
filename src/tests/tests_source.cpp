@@ -3,6 +3,10 @@
 #include <csignal>
 #include <memory>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 Base::~Base()
 {
     m_pDerived -> function();
@@ -59,10 +63,16 @@ void MemoryOverflow() {
     MemoryOverflow();
 }
 
-#define SMALL_NUMBER 0x1fff
+#define SMALL_NUMBER 0x1ff
 void StackOverflow() {
     int *pi = new int[SMALL_NUMBER];
     pi[SMALL_NUMBER/2] = 456;
 
     StackOverflow();
+}
+
+void RaiseSehException() {
+#ifdef _WIN32
+    RaiseException(42, 0, 0, NULL);
+#endif
 }

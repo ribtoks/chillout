@@ -27,7 +27,7 @@ build_script:
   - nmake.exe
 
 test_script:
-  - nmake test
+  - nmake test ARGS=-V
   - set "crash_dump=c:\projects\chillout\src\tests\chillout_test.dmp"
   - if not exist "%crash_dump%" EXIT /B 1
   - powershell Push-AppveyorArtifact "%crash_dump%" -FileName chillout_test.dmp

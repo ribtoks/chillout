@@ -41,3 +41,7 @@ TEST (CrashTest, MemoryTest) {
 TEST (CrashTest, StackOverflowTest) {
     ASSERT_DEATH(StackOverflow(), "");
 }
+
+TEST (CrashTest, RaiseExceptionTest) {
+    ASSERT_DEATH(RaiseSehException(), "");
+}

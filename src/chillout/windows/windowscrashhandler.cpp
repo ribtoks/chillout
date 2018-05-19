@@ -1,4 +1,5 @@
 #include "windowscrashhandler.h"
+#include "../defines.h"
 
 #include <tchar.h>
 #include <stdio.h>
@@ -71,13 +72,6 @@ protected:
 private:
     std::function<void(const char const *)> m_Callback;
 };
-
-LPTOP_LEVEL_EXCEPTION_FILTER WINAPI
-  MyDummySetUnhandledExceptionFilter(
-  LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter)
-{
-  return NULL;
-}
 
 BOOL PreventSetUnhandledExceptionFilter()
 {
@@ -324,36 +318,40 @@ DWORD WINAPI StackOverflowThreadFunction(LPVOID lpParameter)
 
     DoHandleCrash(pExceptionPtrs);
 
-    TerminateProcess(GetCurrentProcess(), 1);
+    TerminateProcess(GetCurrentProcess(), CHILLOUT_EXIT_CODE);
 
     return 0;
 }
 
-static LONG WINAPI CrashHandlerExceptionFilter(EXCEPTION_POINTERS* pExPtrs)
+static LONG WINAPI SehHandler(EXCEPTION_POINTERS* pExPtrs)
 {
+#ifdef _DEBUG
+    fprintf(stderr, "Chillout SehHandler");
+#endif
+    
 #ifdef _M_IX86
-  if (pExPtrs->ExceptionRecord->ExceptionCode == EXCEPTION_STACK_OVERFLOW)
-  {
-      // http://groups.google.com/group/crashrpt/browse_thread/thread/a1dbcc56acb58b27/fbd0151dd8e26daf?lnk=gst&q=stack+overflow#fbd0151dd8e26daf
-      HANDLE thread = ::CreateThread(0, 0,
-                                     &StackOverflowThreadFunction, pExceptionPtrs, 0, 0);
-      DWORD dwMilliseconds = 1000 * 30; // 30 seconds
-      ::WaitForSingleObject(thread, dwMilliseconds);
-      ::CloseHandle(thread);
-      return EXCEPTION_CONTINUE_SEARCH;
-  }
+    if (pExPtrs->ExceptionRecord->ExceptionCode == EXCEPTION_STACK_OVERFLOW)
+    {
+        // http://groups.google.com/group/crashrpt/browse_thread/thread/a1dbcc56acb58b27/fbd0151dd8e26daf?lnk=gst&q=stack+overflow#fbd0151dd8e26daf
+        HANDLE thread = ::CreateThread(0, 0,
+                                       &StackOverflowThreadFunction, pExceptionPtrs, 0, 0);
+        DWORD dwMilliseconds = 1000 * 30; // 30 seconds
+        ::WaitForSingleObject(thread, dwMilliseconds);
+        ::CloseHandle(thread);
+        return EXCEPTION_EXECUTE_HANDLER;
+    }
 #endif
 
-  if (pExPtrs == NULL) {
-      GetExceptionPointers(CR_SEH_EXCEPTION, &pExPtrs);
-  }
+    if (pExPtrs == NULL) {
+        GetExceptionPointers(CR_SEH_EXCEPTION, &pExPtrs);
+    }
 
-  DoHandleCrash(pExPtrs);
+    DoHandleCrash(pExPtrs);
 
-  TerminateProcess(GetCurrentProcess(), 1);
+    TerminateProcess(GetCurrentProcess(), CHILLOUT_EXIT_CODE);
 
-  // unreachable
-  return EXCEPTION_CONTINUE_SEARCH;
+    // unreachable
+    return EXCEPTION_EXECUTE_HANDLER;
 }
 
 // The following code is intended to fix the issue with 32-bit applications in 64-bit environment.
@@ -454,7 +452,7 @@ void WindowsCrashHandler::HandleCrash(EXCEPTION_POINTERS* pExPtrs)
     }
     
     // Terminate process
-    TerminateProcess(GetCurrentProcess(), 1);
+    TerminateProcess(GetCurrentProcess(), CHILLOUT_EXIT_CODE);
 }
 
 void WindowsCrashHandler::Backtrace(EXCEPTION_POINTERS* pExPtrs)
@@ -543,7 +541,7 @@ bool WindowsCrashHandler::IsDataSectionNeeded(const WCHAR* pModuleName)
 void WindowsCrashHandler::SetProcessExceptionHandlers()
 {
     //SetErrorMode(SEM_NOGPFAULTERRORBOX | SEM_FAILCRITICALERRORS);
-    m_oldSehHandler = SetUnhandledExceptionFilter(CrashHandlerExceptionFilter);
+    m_oldSehHandler = SetUnhandledExceptionFilter(SehHandler);
 #if defined _M_X64 || defined _M_IX86
     if (m_oldSehHandler)
         PreventSetUnhandledExceptionFilter();
@@ -753,9 +751,6 @@ void __cdecl WindowsCrashHandler::TerminateHandler()
     }
 
     DoHandleCrash(pExceptionPtrs);
-
-    // Terminate process
-    TerminateProcess(GetCurrentProcess(), 1);
 }
 
 // CRT unexpected() call handler
@@ -770,9 +765,6 @@ void __cdecl WindowsCrashHandler::UnexpectedHandler()
     }
 
     DoHandleCrash(pExceptionPtrs);
-
-    // Terminate process
-    TerminateProcess(GetCurrentProcess(), 1);
 }
 
 // CRT Pure virtual method call handler
@@ -787,9 +779,6 @@ void __cdecl WindowsCrashHandler::PureCallHandler()
     }
 
     DoHandleCrash(pExceptionPtrs);
-
-    // Terminate process
-    TerminateProcess(GetCurrentProcess(), 1);
 }
 
 // CRT buffer overrun handler. Available in CRT 7.1 only
@@ -807,9 +796,6 @@ void __cdecl WindowsCrashHandler::SecurityHandler(int code, void *x)
     }
 
     DoHandleCrash(pExceptionPtrs);
-
-    // Terminate process
-    TerminateProcess(GetCurrentProcess(), 1);
 }
 #endif
 
@@ -832,9 +818,6 @@ void __cdecl WindowsCrashHandler::InvalidParameterHandler(
     GetExceptionPointers(CR_CPP_INVALID_PARAMETER, &pExceptionPtrs);
 
     DoHandleCrash(pExceptionPtrs);
-
-    // Terminate process
-    TerminateProcess(GetCurrentProcess(), 1);
 }
 #endif
 
@@ -848,9 +831,6 @@ int __cdecl WindowsCrashHandler::NewHandler(size_t)
     GetExceptionPointers(CR_CPP_NEW_OPERATOR_ERROR, &pExceptionPtrs);
 
     DoHandleCrash(pExceptionPtrs);
-
-    // Terminate process
-    TerminateProcess(GetCurrentProcess(), 1);
 
     // Unreacheable code
     return 0;
@@ -868,9 +848,6 @@ void WindowsCrashHandler::SigabrtHandler(int)
     }
 
     DoHandleCrash(pExceptionPtrs);
-
-    // Terminate process
-    TerminateProcess(GetCurrentProcess(), 1);
 }
 
 // CRT SIGFPE signal handler
@@ -881,9 +858,6 @@ void WindowsCrashHandler::SigfpeHandler(int /*code*/, int subcode)
     EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
 
     DoHandleCrash(pExceptionPtrs);
-
-    // Terminate process
-    TerminateProcess(GetCurrentProcess(), 1);
 }
 
 // CRT sigill signal handler
@@ -898,9 +872,6 @@ void WindowsCrashHandler::SigillHandler(int)
     }
 
     DoHandleCrash(pExceptionPtrs);
-
-    // Terminate process
-    TerminateProcess(GetCurrentProcess(), 1);
 }
 
 // CRT sigint signal handler
@@ -915,9 +886,6 @@ void WindowsCrashHandler::SigintHandler(int)
     }
 
     DoHandleCrash(pExceptionPtrs);
-
-    // Terminate process
-    TerminateProcess(GetCurrentProcess(), 1);
 }
 
 // CRT SIGSEGV signal handler
@@ -931,9 +899,6 @@ void WindowsCrashHandler::SigsegvHandler(int)
     }
 
     DoHandleCrash(pExceptionPtrs);
-
-    // Terminate process
-    TerminateProcess(GetCurrentProcess(), 1);
 }
 
 // CRT SIGTERM signal handler
@@ -948,9 +913,6 @@ void WindowsCrashHandler::SigtermHandler(int)
     }
 
     DoHandleCrash(pExceptionPtrs);
-
-    // Terminate process
-    TerminateProcess(GetCurrentProcess(), 1);
 }
 
 

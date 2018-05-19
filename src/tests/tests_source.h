@@ -29,5 +29,6 @@ void RaiseSigterm();
 void ThrowException();
 void MemoryOverflow();
 void StackOverflow();
+void RaiseSehException();
 
 #endif // TESTS_SOURCE

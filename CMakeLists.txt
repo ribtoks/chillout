@@ -13,6 +13,8 @@ if (MSVC)
    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 endif (MSVC)
 
+#add_definitions(-DGTEST_HAS_SEH=0)
+
 enable_testing()
 
 add_subdirectory(src/chillout)
