@@ -32,6 +32,10 @@ class RecoveryTest : public ::testing::Test
     }
 };
 
+class DISABLED_RecoveryTest : public ::testing::Test
+{
+};
+
 TEST_F (RecoveryTest, PureVirtualMethodCallTest) {
     ASSERT_EXIT(Derived(), ::testing::ExitedWithCode(1), "::PureCallHandler");
 }
@@ -58,15 +62,15 @@ TEST_F (RecoveryTest, SigtermTest) {
     ASSERT_EXIT(RaiseSigterm(), ::testing::ExitedWithCode(1), "::SigtermHandler");
 }
 
-// // this test is disabled because you can catch c++ exceptions
-// TEST_F (RecoveryTest, ThrowExceptionTest) {
-//     ASSERT_EXIT(ThrowException(), ::testing::ExitedWithCode(1), "");
-// }
+// this test is disabled because you can catch c++ exceptions
+TEST_F (DISABLED_RecoveryTest, ThrowExceptionTest) {
+    ASSERT_EXIT(ThrowException(), ::testing::ExitedWithCode(1), "");
+}
 
 TEST_F (RecoveryTest, MemoryTest) {
     ASSERT_EXIT(MemoryOverflow(), ::testing::ExitedWithCode(1), "::NewHandler");
 }
 
-// TEST_F (RecoveryTest, StackOverflowTest) {
-//     ASSERT_EXIT(StackOverflow(), ::testing::ExitedWithCode(1), "::adfadf");
-// }
+TEST_F (DISABLED_RecoveryTest, StackOverflowTest) {
+     ASSERT_EXIT(StackOverflow(), ::testing::ExitedWithCode(1), "::adfadf");
+}

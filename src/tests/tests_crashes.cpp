@@ -14,9 +14,9 @@ TEST (CrashTest, AccessViolationTest) {
 // This window could be disabled for a process but
 // gtest starts new process for DEATH tests so it
 // makes no sense to run it.
-// TEST (CrashTest, InvalidParameterTest) {
-//     ASSERT_DEATH(InvalidParameter(), "");
-// }
+TEST (CrashTest, DISABLED_InvalidParameterTest) {
+    ASSERT_DEATH(InvalidParameter(), "");
+}
 
 TEST (CrashTest, SigillTest) {
     ASSERT_DEATH(RaiseSigill(), "");
