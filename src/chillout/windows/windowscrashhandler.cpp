@@ -723,7 +723,7 @@ int __cdecl WindowsCrashHandler::CrtReportHook(int nReportType, char* szMsg, int
     }
     
     if (pnRet) {
-        *pnRet = 1;
+        *pnRet = 0;
     }
     
     return TRUE;
@@ -801,6 +801,7 @@ void __cdecl WindowsCrashHandler::SecurityHandler(int code, void *x)
 }
 #endif
 
+#if _MSC_VER>=1400
 // CRT invalid parameter handler
 void __cdecl WindowsCrashHandler::InvalidParameterHandler(
     const wchar_t* expression,
@@ -810,7 +811,10 @@ void __cdecl WindowsCrashHandler::InvalidParameterHandler(
     uintptr_t pReserved)
 {
     pReserved;
-
+    
+    // fwprintf(stderr, L"Invalid parameter detected in function %s."
+    //        L" File: %s Line: %d\n", function, file, line);
+    
     // Retrieve exception information
     EXCEPTION_POINTERS* pExceptionPtrs = NULL;
     GetExceptionPointers(CR_CPP_INVALID_PARAMETER, &pExceptionPtrs);
@@ -820,6 +824,7 @@ void __cdecl WindowsCrashHandler::InvalidParameterHandler(
     // Terminate process
     TerminateProcess(GetCurrentProcess(), 1);
 }
+#endif
 
 // CRT new operator fault handler
 int __cdecl WindowsCrashHandler::NewHandler(size_t)

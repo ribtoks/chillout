@@ -98,8 +98,10 @@ public:
     static void __cdecl SecurityHandler(int code, void *x);
 #endif
 
+#if _MSC_VER>=1400
     static void __cdecl InvalidParameterHandler(const wchar_t* expression,
         const wchar_t* function, const wchar_t* file, unsigned int line, uintptr_t pReserved);
+#endif
 
     static int __cdecl NewHandler(size_t);
 
