@@ -27,5 +27,6 @@ void RaiseSigill();
 void RaiseSigsegv();
 void RaiseSigterm();
 void ThrowException();
+void StackOverflow();
 
 #endif // TESTS_SOURCE

@@ -58,7 +58,11 @@ TEST_F (RecoveryTest, SigtermTest) {
     ASSERT_EXIT(RaiseSigterm(), ::testing::ExitedWithCode(1), "::SigtermHandler");
 }
 
-// this test is disabled because you can catch c++ exceptions
+// // this test is disabled because you can catch c++ exceptions
 // TEST_F (RecoveryTest, ThrowExceptionTest) {
 //     ASSERT_EXIT(ThrowException(), ::testing::ExitedWithCode(1), "");
 // }
+
+TEST_F (RecoveryTest, StackOverflowTest) {
+    ASSERT_EXIT(StackOverflow(), ::testing::ExitedWithCode(1), "::NewHandler");
+}

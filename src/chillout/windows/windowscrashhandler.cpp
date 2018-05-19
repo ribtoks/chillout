@@ -311,39 +311,64 @@ void DoHandleCrash(EXCEPTION_POINTERS* pExPtrs)
     handler.HandleCrash(pExPtrs);    
 }
 
+// http://groups.google.com/group/crashrpt/browse_thread/thread/a1dbcc56acb58b27/fbd0151dd8e26daf?lnk=gst&q=stack+overflow#fbd0151dd8e26daf
+// Thread procedure doing the dump for stack overflow.
+DWORD WINAPI StackOverflowThreadFunction(LPVOID lpParameter)
+{
+    PEXCEPTION_POINTERS pExceptionPtrs =
+        reinterpret_cast<PEXCEPTION_POINTERS>(lpParameter);
+
+    if (pExceptionPtrs == NULL) {
+        GetExceptionPointers(CR_SEH_EXCEPTION, &pExceptionPtrs);
+    }
+
+    DoHandleCrash(pExceptionPtrs);
+
+    TerminateProcess(GetCurrentProcess(), 1);
+
+    return 0;
+}
+
 static BOOL s_bUnhandledExeptionFilterSet = FALSE;
-static LONG __stdcall CrashHandlerExceptionFilter(EXCEPTION_POINTERS* pExPtrs)
+static LONG WINAPI CrashHandlerExceptionFilter(EXCEPTION_POINTERS* pExPtrs)
 {
 #ifdef _M_IX86
   if (pExPtrs->ExceptionRecord->ExceptionCode == EXCEPTION_STACK_OVERFLOW)
   {
-    static char MyStack[1024*128];  // be sure that we have enought space...
-    // it assumes that DS and SS are the same!!! (this is the case for Win32)
-    // change the stack only if the selectors are the same (this is the case for Win32)
-    //__asm push offset MyStack[1024*128];
-    //__asm pop esp;
-  __asm mov eax,offset MyStack[1024*128];
-  __asm mov esp,eax;
+      // http://groups.google.com/group/crashrpt/browse_thread/thread/a1dbcc56acb58b27/fbd0151dd8e26daf?lnk=gst&q=stack+overflow#fbd0151dd8e26daf
+      HANDLE thread = ::CreateThread(0, 0,
+                                     &StackOverflowThreadFunction, pExceptionPtrs, 0, 0);
+      DWORD dwMilliseconds = 1000 * 30; // 30 seconds
+      ::WaitForSingleObject(thread, dwMilliseconds);
+      ::CloseHandle(thread);
+      return EXCEPTION_CONTINUE_SEARCH;
   }
 #endif
 
+  if (pExPtrs == NULL) {
+      GetExceptionPointers(CR_SEH_EXCEPTION, &pExPtrs);
+  }
+
   DoHandleCrash(pExPtrs);
 
+  TerminateProcess(GetCurrentProcess(), 1);
+
+  // unreachable
   return EXCEPTION_CONTINUE_SEARCH;
 }
 
 static LPTOP_LEVEL_EXCEPTION_FILTER InitUnhandledExceptionFilter()
 {
     LPTOP_LEVEL_EXCEPTION_FILTER filter = NULL;
-  if (s_bUnhandledExeptionFilterSet == FALSE)
-  {
-    // set global exception handler (for handling all unhandled exceptions)
-    filter = SetUnhandledExceptionFilter(CrashHandlerExceptionFilter);
+    if (s_bUnhandledExeptionFilterSet == FALSE)
+    {
+        // set global exception handler (for handling all unhandled exceptions)
+        filter = SetUnhandledExceptionFilter(CrashHandlerExceptionFilter);
 #if defined _M_X64 || defined _M_IX86
-    PreventSetUnhandledExceptionFilter();
+        PreventSetUnhandledExceptionFilter();
 #endif
-    s_bUnhandledExeptionFilterSet = TRUE;
-  }
+        s_bUnhandledExeptionFilterSet = TRUE;
+    }
 
   return filter;
 }
