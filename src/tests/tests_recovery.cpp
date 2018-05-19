@@ -63,6 +63,6 @@ TEST_F (RecoveryTest, SigtermTest) {
 //     ASSERT_EXIT(ThrowException(), ::testing::ExitedWithCode(1), "");
 // }
 
-TEST_F (RecoveryTest, StackOverflowTest) {
-    ASSERT_EXIT(StackOverflow(), ::testing::ExitedWithCode(1), "::NewHandler");
+TEST_F (RecoveryTest, MemoryTest) {
+    ASSERT_EXIT(MemoryOverflow(), ::testing::ExitedWithCode(1), "::NewHandler");
 }

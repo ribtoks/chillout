@@ -43,11 +43,11 @@ void ThrowException() {
 #pragma warning(disable: 4717) // avoid C4717 warning
 #define BIG_NUMBER 0x1fffffff
 
-void StackOverflow() {
+void MemoryOverflow() {
     int *pi = new int[BIG_NUMBER];
     pi[BIG_NUMBER/4] = 123;
     pi[BIG_NUMBER/2] = 456;
     pi[3*BIG_NUMBER/4] = 789;
 
-    StackOverflow();
+    MemoryOverflow();
 }

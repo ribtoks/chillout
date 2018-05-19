@@ -34,6 +34,6 @@ TEST (CrashTest, ThrowExceptionTest) {
     ASSERT_ANY_THROW(ThrowException());
 }
 
-TEST (CrashTest, StackOverflowTest) {
-    ASSERT_ANY_THROW(StackOverflow());
+TEST (CrashTest, MemoryTest) {
+    ASSERT_ANY_THROW(MemoryOverflow());
 }
