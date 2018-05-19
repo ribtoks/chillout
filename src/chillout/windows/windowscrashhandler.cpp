@@ -329,7 +329,6 @@ DWORD WINAPI StackOverflowThreadFunction(LPVOID lpParameter)
     return 0;
 }
 
-static BOOL s_bUnhandledExeptionFilterSet = FALSE;
 static LONG WINAPI CrashHandlerExceptionFilter(EXCEPTION_POINTERS* pExPtrs)
 {
 #ifdef _M_IX86
@@ -355,22 +354,6 @@ static LONG WINAPI CrashHandlerExceptionFilter(EXCEPTION_POINTERS* pExPtrs)
 
   // unreachable
   return EXCEPTION_CONTINUE_SEARCH;
-}
-
-static LPTOP_LEVEL_EXCEPTION_FILTER InitUnhandledExceptionFilter()
-{
-    LPTOP_LEVEL_EXCEPTION_FILTER filter = NULL;
-    if (s_bUnhandledExeptionFilterSet == FALSE)
-    {
-        // set global exception handler (for handling all unhandled exceptions)
-        filter = SetUnhandledExceptionFilter(CrashHandlerExceptionFilter);
-#if defined _M_X64 || defined _M_IX86
-        PreventSetUnhandledExceptionFilter();
-#endif
-        s_bUnhandledExeptionFilterSet = TRUE;
-    }
-
-  return filter;
 }
 
 // The following code is intended to fix the issue with 32-bit applications in 64-bit environment.
@@ -559,8 +542,12 @@ bool WindowsCrashHandler::IsDataSectionNeeded(const WCHAR* pModuleName)
 
 void WindowsCrashHandler::SetProcessExceptionHandlers()
 {
-    // SetErrorMode(SEM_FAILCRITICALERRORS);
-    m_oldSehHandler = InitUnhandledExceptionFilter();
+    //SetErrorMode(SEM_NOGPFAULTERRORBOX | SEM_FAILCRITICALERRORS);
+    m_oldSehHandler = SetUnhandledExceptionFilter(CrashHandlerExceptionFilter);
+#if defined _M_X64 || defined _M_IX86
+    if (m_oldSehHandler)
+        PreventSetUnhandledExceptionFilter();
+#endif
 
 #if _MSC_VER>=1300
     // Catch pure virtual function calls.

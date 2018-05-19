@@ -37,3 +37,7 @@ TEST (CrashTest, ThrowExceptionTest) {
 TEST (CrashTest, MemoryTest) {
     ASSERT_ANY_THROW(MemoryOverflow());
 }
+
+TEST (CrashTest, StackOverflowTest) {
+    ASSERT_DEATH(StackOverflow(), "");
+}

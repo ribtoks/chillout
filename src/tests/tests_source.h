@@ -28,5 +28,6 @@ void RaiseSigsegv();
 void RaiseSigterm();
 void ThrowException();
 void MemoryOverflow();
+void StackOverflow();
 
 #endif // TESTS_SOURCE

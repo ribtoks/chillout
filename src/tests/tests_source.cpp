@@ -1,17 +1,24 @@
 #include "tests_source.h"
 #include <cstdio>
 #include <csignal>
+#include <memory>
 
 Base::~Base()
 {
     m_pDerived -> function();
 }
 
+struct TestStruct {
+    int m_Field;
+};
+
 void AccessViolation() {
     // Access violation
-    int *p = 0;
+    std::shared_ptr<TestStruct> p;
+//     int *p = nullptr;
 #pragma warning(disable : 6011)   // warning C6011: Dereferencing NULL pointer 'p'
-    *p = 0;
+    //*p = 0;
+    p->m_Field = 123;
 #pragma warning(default : 6011)
 }
 
@@ -50,4 +57,12 @@ void MemoryOverflow() {
     pi[3*BIG_NUMBER/4] = 789;
 
     MemoryOverflow();
+}
+
+#define SMALL_NUMBER 0x1fff
+void StackOverflow() {
+    int *pi = new int[SMALL_NUMBER];
+    pi[SMALL_NUMBER/2] = 456;
+
+    StackOverflow();
 }
