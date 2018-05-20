@@ -34,11 +34,11 @@ TEST (CrashTest, ThrowExceptionTest) {
     ASSERT_ANY_THROW(ThrowException());
 }
 
-TEST (CrashTest, MemoryTest) {
+TEST (CrashTest, DISABLED_MemoryTest) {
     ASSERT_ANY_THROW(MemoryOverflow());
 }
 
-TEST (CrashTest, StackOverflowTest) {
+TEST (CrashTest, DISABLED_StackOverflowTest) {
     ASSERT_DEATH(StackOverflow(), "");
 }
 
