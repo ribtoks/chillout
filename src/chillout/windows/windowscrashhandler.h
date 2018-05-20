@@ -65,7 +65,7 @@ public:
     void Teardown();
     void SetCrashDumpSize(CrashDumpSize size);
     void SetCrashCallback(const std::function<void()> &crashCallback);
-    void SetBacktraceCallback(const std::function<void(const char const *)> &backtraceCallback);
+    void SetBacktraceCallback(const std::function<void(const char * const)> &backtraceCallback);
     void HandleCrash(EXCEPTION_POINTERS* pExPtrs);
 
 private:
@@ -114,7 +114,7 @@ public:
 
 private:
     std::function<void()> m_CrashCallback;
-    std::function<void(const char const *)> m_BacktraceCallback;
+    std::function<void(const char * const)> m_BacktraceCallback;
     std::mutex m_CrashMutex;
     CrashDumpSize m_CrashDumpSize;
     std::wstring m_AppName;

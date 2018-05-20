@@ -21,7 +21,7 @@ void Chillout::deinit() {
 #endif
 }
 
-void Chillout::setBacktraceCallback(const std::function<void(const char const *)> &callback) {
+void Chillout::setBacktraceCallback(const std::function<void(const char * const)> &callback) {
 #ifdef _WIN32
     WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
     handler.SetBacktraceCallback(callback);

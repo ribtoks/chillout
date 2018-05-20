@@ -12,7 +12,7 @@
 #define WIDEN(quote) WIDEN2(quote)
 #define WIDEN2(quote) L##quote
 
-void chilltrace(const char const * stackEntry) {
+void chilltrace(const char * const stackEntry) {
     if (stackEntry) {
         fprintf(stderr, "chilltrace:  %s", stackEntry);
     }

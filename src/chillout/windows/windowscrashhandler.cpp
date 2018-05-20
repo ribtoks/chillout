@@ -59,7 +59,7 @@
 class StackWalkerWithCallback : public StackWalker
 {
 public:
-    StackWalkerWithCallback(const std::function<void(const char const *)> &callback):
+    StackWalkerWithCallback(const std::function<void(const char * const)> &callback):
         StackWalker(RetrieveVerbose | SymBuildPath),
         m_Callback(callback)
     { }
@@ -70,7 +70,7 @@ protected:
   }
 
 private:
-    std::function<void(const char const *)> m_Callback;
+    std::function<void(const char * const)> m_Callback;
 };
 
 BOOL PreventSetUnhandledExceptionFilter()
@@ -434,7 +434,7 @@ void WindowsCrashHandler::SetCrashCallback(const std::function<void()> &crashCal
     m_CrashCallback = crashCallback;
 }
 
-void WindowsCrashHandler::SetBacktraceCallback(const std::function<void(const char const *)> &backtraceCallback)
+void WindowsCrashHandler::SetBacktraceCallback(const std::function<void(const char * const)> &backtraceCallback)
 {
     m_BacktraceCallback = backtraceCallback;
 }
