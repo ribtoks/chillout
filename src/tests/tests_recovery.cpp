@@ -5,6 +5,8 @@
 #include <string>
 #include <cstdio>
 #include "tests_source.h"
+#include "gtest_extensions.h"
+#include <signal.h>
 
 #define STRINGIZE_(x) #x
 #define STRINGIZE(x) STRINGIZE_(x)
@@ -14,7 +16,7 @@
 
 void chilltrace(const char * const stackEntry) {
     if (stackEntry) {
-        fprintf(stderr, "chilltrace:  %s", stackEntry);
+        fprintf(stdout, "chilltrace:  %s", stackEntry);
     }
 }
 
@@ -26,7 +28,7 @@ protected:
         chillout.init(L"chillout_test", WIDEN(STRINGIZE(CRASHDUMPSDIR)));
         chillout.setBacktraceCallback(chilltrace);
         chillout.setCrashCallback([](){
-                fprintf(stdout, "Crash callback");
+                fprintf(stderr, "Crash callback");
             });
     }
 
@@ -41,27 +43,27 @@ class DISABLED_RecoveryTest : public ::testing::Test
 };
 
 TEST_F (RecoveryTest, PureVirtualMethodCallTest) {
-    ASSERT_EXIT(Derived(), ::testing::ExitedWithCode(CHILLOUT_EXIT_CODE), "::PureCallHandler");
+    ASSERT_EXIT(Derived(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGSEGV), "(::PureCallHandler|PosixCrashHandler::handleCrash)");
 }
 
 TEST_F (RecoveryTest, AccessViolationTest) {
-    ASSERT_EXIT(AccessViolation(), ::testing::ExitedWithCode(CHILLOUT_EXIT_CODE), "AccessViolationTest");
+    ASSERT_EXIT(AccessViolation(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGSEGV), "AccessViolationTest");
 }
 
 TEST_F (RecoveryTest, InvalidParameterTest) {
-    ASSERT_EXIT(InvalidParameter(), ::testing::ExitedWithCode(CHILLOUT_EXIT_CODE), "::InvalidParameterHandler");
+    ASSERT_EXIT(InvalidParameter(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGSEGV), "(::InvalidParameterHandler|PosixCrashHandler::handleCrash)");
 }
 
 TEST_F (RecoveryTest, SigillTest) {
-    ASSERT_EXIT(RaiseSigill(), ::testing::ExitedWithCode(CHILLOUT_EXIT_CODE), "::SigillHandler");
+    ASSERT_EXIT(RaiseSigill(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGILL), "(::SigillHandler|posixSignalHandler)");
 }
 
 TEST_F (RecoveryTest, SigsegvTest) {
-    ASSERT_EXIT(RaiseSigsegv(), ::testing::ExitedWithCode(CHILLOUT_EXIT_CODE), "::SigsegvHandler");
+    ASSERT_EXIT(RaiseSigsegv(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGSEGV), "(::SigsegvHandler|posixSignalHandler)");
 }
 
 TEST_F (RecoveryTest, SigtermTest) {
-    ASSERT_EXIT(RaiseSigterm(), ::testing::ExitedWithCode(CHILLOUT_EXIT_CODE), "::SigtermHandler");
+    ASSERT_EXIT(RaiseSigterm(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGTERM), "(::SigtermHandler|posixSignalHandler)");
 }
 
 // this test is disabled because you can catch c++ exceptions
@@ -69,7 +71,7 @@ TEST_F (DISABLED_RecoveryTest, ThrowExceptionTest) {
     ASSERT_EXIT(ThrowException(), ::testing::ExitedWithCode(CHILLOUT_EXIT_CODE), "");
 }
 
-TEST_F (RecoveryTest, MemoryTest) {
+TEST_F (DISABLED_RecoveryTest, MemoryTest) {
     ASSERT_EXIT(MemoryOverflow(), ::testing::ExitedWithCode(CHILLOUT_EXIT_CODE), "::NewHandler");
 }
 
@@ -78,5 +80,5 @@ TEST_F (DISABLED_RecoveryTest, StackOverflowTest) {
 }
 
 TEST_F (RecoveryTest, RaiseExceptionTest) {
-    ASSERT_EXIT(RaiseSehException(), ::testing::ExitedWithCode(CHILLOUT_EXIT_CODE), "Chillout SehHandler");
+    ASSERT_EXIT(RaiseSehException(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGTERM), "Chillout SehHandler|posixSignalHandler");
 }

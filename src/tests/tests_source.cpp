@@ -5,6 +5,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <stdexcept>
 #endif
 
 Base::~Base()
@@ -63,9 +65,9 @@ void MemoryOverflow() {
     MemoryOverflow();
 }
 
-#define SMALL_NUMBER 0x1ff
+#define SMALL_NUMBER 0x1fff
 void StackOverflow() {
-    int *pi = new int[SMALL_NUMBER];
+    int pi[SMALL_NUMBER];
     pi[SMALL_NUMBER/2] = 456;
 
     StackOverflow();
@@ -74,5 +76,7 @@ void StackOverflow() {
 void RaiseSehException() {
 #ifdef _WIN32
     RaiseException(42, 0, 0, NULL);
+#else
+    raise(SIGTERM);
 #endif
 }
