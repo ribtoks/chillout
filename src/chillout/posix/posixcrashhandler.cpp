@@ -60,6 +60,8 @@ bool demangleLine(char *line, char *memory) {
         sprintf(stackFrame, "(%s)\t0x%s — %s + %d\n",
                 moduleName, addr, functionName, offset);
     }
+
+    return true;
 }
 #else
 bool demangleLine(char *line, char *memory) {
