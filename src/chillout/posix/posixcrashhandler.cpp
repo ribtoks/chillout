@@ -91,7 +91,7 @@ void walkStackTrace(const std::function<void(const char * const)> &callback, cha
         Dl_info info;
         if (dladdr(callstack[i], &info) && info.dli_sname) {
             int status = -1;
-            memset(memory, 0, memorySize - framesSize);
+            memset(memory, 0, memorySize - framesSize - 1);
             char *stackFrame = fake_alloc(&memory, stackFrameSize);
                     
             if (info.dli_sname[0] == '_') {
