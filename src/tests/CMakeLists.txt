@@ -26,6 +26,10 @@ if(WIN32)
   target_link_libraries(chillout_test Advapi32 DbgHelp)
 endif()
 
+if(UNIX)
+  target_link_libraries(chillout_test dl)
+endif()
+
 target_link_libraries(chillout_test gtest_main)
 target_link_libraries(chillout_test chillout)
 
