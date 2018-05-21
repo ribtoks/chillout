@@ -15,6 +15,10 @@ endif()
 add_definitions(-DCRASHDUMPSDIR=${CRASH_DUMPS_ROOT})
 message("Crash dumps root: ${CRASH_DUMPS_ROOT}")
 
+if(UNIX)
+  set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -rdynamic")
+endif()
+
 target_include_directories(chillout_test PRIVATE ${CHILLOUT_SOURCE_DIR})
 target_include_directories(chillout_test PRIVATE ${GTEST_SOURCE_DIR}/googletest/include)
 target_include_directories(chillout_test PRIVATE ${GTEST_SOURCE_DIR}/include)

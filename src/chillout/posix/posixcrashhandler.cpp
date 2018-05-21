@@ -76,12 +76,11 @@ char *demangleLine(char *line, char *memory) {
 char *dlDemangle(void *addr, char *symbol, int frameIndex, char *memory) {
     Dl_info info;
     if (dladdr(addr, &info) != 0) {
-        int status = -1;
-
         const int stackFrameSize = 4096;
         char *stackFrame = fake_alloc(&memory, stackFrameSize);
                     
         if ((info.dli_sname != NULL) && (info.dli_sname[0] == '_')) {
+            int status = -1;
             std::unique_ptr<char, FreeDeleter> demangled(abi::__cxa_demangle(info.dli_sname, NULL, 0, &status));
             snprintf(stackFrame, stackFrameSize, "%-3d %*p %s + %zd\n",
                      frameIndex, int(2 + sizeof(void*) * 2), addr,
