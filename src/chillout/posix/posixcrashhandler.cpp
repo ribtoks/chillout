@@ -152,7 +152,7 @@ void PosixCrashHandler::teardown() {
 
 void PosixCrashHandler::handleCrash() {
     if (m_BacktraceCallback) {
-        walkStackTrace(m_BacktraceCallback, m_Memory);
+        walkStackTrace(m_BacktraceCallback, m_Memory, sizeof(m_Memory));
     }
 
     if (m_CrashCallback) {
