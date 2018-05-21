@@ -91,7 +91,7 @@ char *dlDemangle(void *addr, char *symbol, int frameIndex, char *memory) {
 
         } else {
             snprintf(stackFrame, stackFrameSize, "%-3d %*p %s\n",
-                     frameindex, int(2 + sizeof(void*) * 2), addr, symbol);
+                     frameIndex, int(2 + sizeof(void*) * 2), addr, symbol);
         }
 
         return stackFrame;
