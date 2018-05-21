@@ -34,7 +34,7 @@ char *fake_alloc(char **memory, size_t size) {
 }
 
 #ifdef __APPLE__
-bool demangleLine(char *line, char *memory) {
+char *demangleLine(char *line, char *memory) {
     char *functionSymbol = fake_alloc(&memory, 1024);
     char *moduleName = fake_alloc(&memory, 1024);
     int offset = 0;
@@ -61,15 +61,15 @@ bool demangleLine(char *line, char *memory) {
                 moduleName, addr, functionName.get(), offset);
     }
 
-    return true;
+    return stackFrame;
 }
 #else
-bool demangleLine(char *line, char *memory) {
-    return false;
+char *demangleLine(char *line, char *memory) {
+    return nulllptr;
 }
 #endif
 
-void walkStackTrace(const std::function<void(const char * const)> &callback, char *memory, unsigned int maxFrames = 127) {
+void walkStackTrace(const std::function<void(const char * const)> &callback, char *memory, size_t memorySize, unsigned int maxFrames = 127) {
     const size_t framesSize = (maxFrames + 2) * sizeof(void*);
     void **trace = reinterpret_cast<void**>(fake_alloc(&memory, framesSize));
     int frames = backtrace(trace, maxFrames + 2);
@@ -80,9 +80,12 @@ void walkStackTrace(const std::function<void(const char * const)> &callback, cha
     if (!symbols) { return; }
 
     for (int i = stackOffset; i < frames; ++i) {
+        memset(memory, 0, memorySize - framesSize);
+
         char* traceLine = symbols.get()[i];
-        if (demangleLine(traceLine, memory)) {
-            callback(memory);
+        char *demangled = demangleLine(traceLine, memory);
+        if (demangled != nullptr) {
+            callback(demangled);
         } else {
             callback(traceLine);
         }
@@ -103,7 +106,7 @@ void posixSignalHandler( int signum, siginfo_t* si, void* ucontext ) {
 }
 
 PosixCrashHandler::PosixCrashHandler() {
-        
+    memset(&m_Memory[0], 0, sizeof(m_Memory));
 }
 
 void PosixCrashHandler::setup() {
@@ -149,7 +152,6 @@ void PosixCrashHandler::teardown() {
 
 void PosixCrashHandler::handleCrash() {
     if (m_BacktraceCallback) {
-        memset(m_Memory, 0, sizeof(m_Memory));
         walkStackTrace(m_BacktraceCallback, m_Memory);
     }
 
