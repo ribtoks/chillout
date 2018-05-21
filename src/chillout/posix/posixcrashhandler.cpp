@@ -80,9 +80,10 @@ void walkStackTrace(const std::function<void(const char * const)> &callback, cha
 
     const int stackOffset = callstack[2] == callstack[1] ? 2 : 1;
 
-    //std::unique_ptr<char*, FreeDeleter> symbols(backtrace_symbols(trace, frames));
-    //if (!symbols) { return; }
-
+    std::unique_ptr<char*, FreeDeleter> symbolsPtr(backtrace_symbols(callstack, frames));
+    if (!symbols) { return; }
+    
+    char **symbols = symbolsPtr.get();
     const int stackFrameSize = 4096;
 
     for (int i = stackOffset; i < frames; ++i) {
@@ -90,19 +91,20 @@ void walkStackTrace(const std::function<void(const char * const)> &callback, cha
         char *stackFrame = fake_alloc(&memory, stackFrameSize);
         //char* traceLine = symbols.get()[i];
         Dl_info info;
-        if (dladdr(callstack[i], &info)) {
+        if (dladdr(callstack[i], &info) && info.dli_sname) {
+            int status = -1;
+            if (info.dli_sname[0] == '_') {
+                std::unique_ptr<char, FreeDeleter> demangled(abi::__cxa_demangle(info.dli_sname, NULL, 0, &status));
+                snprintf(stackFrame, stackFrameSize, "%-3d %*p %s + %zd\n",
+                         i, int(2 + sizeof(void*) * 2), callstack[i],
+                         status == 0 ? demangled.get() :
+                         info.dli_sname == 0 ? symbols[i] : info.dli_sname,
+                         (char *)callstack[i] - (char *)info.dli_saddr);
 
-            int status;
-            std::unique_ptr<char, FreeDeleter> demangled(abi::__cxa_demangle(info.dli_sname, NULL, 0, &status));
-            snprintf(stackFrame, stackFrameSize, "%-3d %*0p %s + %zd\n",
-                     i, 2 + sizeof(void*) * 2, callstack[i],
-                     status == 0 ? demangled.get() : info.dli_sname,
-                     (char *)callstack[i] - (char *)info.dli_saddr);
-
-        } else {
-            snprintf(stackFrame, stackFrameSize, "%-3d %*0p\n",
-                     i, 2 + sizeof(void*) * 2, callstack[i]);
-        }
+            } else {
+                snprintf(stackFrame, stackFrameSize, "%-3d %*p %s\n",
+                         i, int(2 + sizeof(void*) * 2), callstack[i], symbols[i]);
+            }
 
         callback(stackFrame);
     }
