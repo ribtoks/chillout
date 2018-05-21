@@ -16,7 +16,7 @@
 
 void chilltrace(const char * const stackEntry) {
     if (stackEntry) {
-        fprintf(stdout, "chilltrace:  %s", stackEntry);
+        fprintf(stderr, "chilltrace:  %s", stackEntry);
     }
 }
 
