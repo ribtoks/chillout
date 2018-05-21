@@ -10,26 +10,42 @@
 #include <cstring>
 #include <cstdint>
 
+#include <algorithm>
+
 #include "../defines.h"
 
 #define MAX_ENTRY_LENGTH 2048
 
-static inline void walkStackTrace( const std::function<void(const char * const)> &callback, unsigned int maxFrames = 127 )
-{
-    int callstack[maxFrames + 1];
-    int frames = backtrace((void**) callstack, maxFrames);
-    
-    // get the human-readable symbols (mangled)
-    char** strs = backtrace_symbols((void**) callstack, frames);
-    for (int i = 0; i < frames; ++i) {
-        char functionSymbol[1024] = {};
-        char moduleName[1024] = {};
-        int  offset = 0;
-        char addr[48] = {};
+const char s_MangledSymbolPrefix[] = "_Z";
+const char s_SymbolCharacters[] = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
-        // split the string, take out chunks out of stack trace
-        // we are primarily interested in module, function and address
-        sscanf(strs[i], "%*s %s %s %s %*s %d", &moduleName[0], &addr[0], &functionSymbol[0], &offset);
+struct FreeDeleter {
+  void operator()(void* ptr) const {
+    free(ptr);
+  }
+};
+
+#ifdef DARWIN
+bool demangleLine(char *line, char *memory) {
+
+
+    char functionSymbol[1024] = {};
+    char moduleName[1024] = {};
+    int offset = 0;
+    char addr[48] = {};
+
+    const int lineLength = strlen(line);
+
+    char *mangledStart = strstr(line, s_MangledSymbolPrefix);
+    if (mangledStart == NULL) { return false; }
+
+    size_t nameLength = strspn(mangledStart, s_SymbolCharacters);
+    if (nameLength <= 0) { nameLength = lineLength - (mangledStart - line + 1); }
+    char *mangledEnd = mangledStart + nameLength;
+
+    // split the string, take out chunks out of stack trace
+    // we are primarily interested in module, function and address
+    sscanf(strs[i], "%*s %s %s %s %*s %d", &moduleName[0], &addr[0], &functionSymbol[0], &offset);
 
         int validCppName = 0;
         //  if this is a C++ library, symbol will be demangled
@@ -51,11 +67,30 @@ static inline void walkStackTrace( const std::function<void(const char * const)>
         if (functionName) {
             free(functionName);
         }
+}
+#else
+bool demangleLine(char *line, char *memory) {
+    return false;
+}
+#endif
 
-        callback(stackFrame);
+void walkStackTrace(const std::function<void(const char * const)> &callback, char *memory, unsigned int maxFrames = 127)
+{
+    void **trace = reinterpret_cast<void**>(memory);
+    memory += (maxFrames + 2) * sizeof(void*);
+    int frames = backtrace(trace, maxFrames + 2);
+
+    const int stackOffset = trace[2] == trace[1] ? 2 : 1;
+
+    std::unique_ptr<char*, FreeDeleter> symbols(backtrace_symbols(trace, frames));
+    if (!symbols) { return; }
+
+    for (int i = stackOffset; i < frames; ++i) {
+        char* traceLine = symbols.get()[i];
+        if (demangleLine(traceLine, memory)) {
+            callback(memory);
+        }
     }
-
-    free(strs);
 }
 
 void posixSignalHandler( int signum, siginfo_t* si, void* ucontext ) {
@@ -118,7 +153,7 @@ void PosixCrashHandler::teardown() {
 
 void PosixCrashHandler::handleCrash() {
     if (m_BacktraceCallback) {
-        walkStackTrace(m_BacktraceCallback);
+        walkStackTrace(m_BacktraceCallback, m_Memory);
     }
 
     if (m_CrashCallback) {

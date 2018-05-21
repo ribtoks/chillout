@@ -26,6 +26,7 @@ public:
 private:
     std::function<void()> m_CrashCallback;
     std::function<void(const char * const)> m_BacktraceCallback;
+    char m_Memory[10*1024];
 };
 
 #endif // POSIXCRASHHANDLER_H
