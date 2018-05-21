@@ -73,7 +73,7 @@ char *demangleLine(char *line, char *memory) {
 }
 #endif
 
-char *dlDemangle(void *addr, char *symbol, char *memory) {
+char *dlDemangle(void *addr, char *symbol, int frameIndex, char *memory) {
     Dl_info info;
     if (dladdr(addr, &info) != 0) {
         int status = -1;
@@ -84,14 +84,14 @@ char *dlDemangle(void *addr, char *symbol, char *memory) {
         if ((info.dli_sname != NULL) && (info.dli_sname[0] == '_')) {
             std::unique_ptr<char, FreeDeleter> demangled(abi::__cxa_demangle(info.dli_sname, NULL, 0, &status));
             snprintf(stackFrame, stackFrameSize, "%-3d %*p %s + %zd\n",
-                     i, int(2 + sizeof(void*) * 2), addr,
+                     frameIndex, int(2 + sizeof(void*) * 2), addr,
                      status == 0 ? demangled.get() :
                      info.dli_sname == 0 ? symbol : info.dli_sname,
                      (char *)addr - (char *)info.dli_saddr);
 
         } else {
             snprintf(stackFrame, stackFrameSize, "%-3d %*p %s\n",
-                     i, int(2 + sizeof(void*) * 2), addr, symbol);
+                     frameindex, int(2 + sizeof(void*) * 2), addr, symbol);
         }
 
         return stackFrame;
@@ -115,9 +115,10 @@ void walkStackTrace(const std::function<void(const char * const)> &callback, cha
     for (int i = stackOffset; i < frames; ++i) {
         //char* traceLine = symbols.get()[i];
         memset(memory, 0, memorySize - framesSize - 1);
-        char *stackFrame = dlDemangle(callstack[i], symbols[i], memory);
+        char *stackFrame = dlDemangle(callstack[i], symbols[i], i, memory);
         if (stackFrame) {
             callback(stackFrame);
+        }
     }
 
     if (frames == maxFrames) {
