@@ -78,12 +78,12 @@ void walkStackTrace(const std::function<void(const char * const)> &callback, cha
     void **callstack = reinterpret_cast<void**>(fake_alloc(&memory, framesSize));
     int frames = backtrace(callstack, maxFrames);
 
-    const int stackOffset = trace[2] == trace[1] ? 2 : 1;
+    const int stackOffset = callstack[2] == callstack[1] ? 2 : 1;
 
     //std::unique_ptr<char*, FreeDeleter> symbols(backtrace_symbols(trace, frames));
     //if (!symbols) { return; }
 
-    const int stackFrameSize = 4096
+    const int stackFrameSize = 4096;
 
     for (int i = stackOffset; i < frames; ++i) {
         memset(memory, 0, memorySize - framesSize);
