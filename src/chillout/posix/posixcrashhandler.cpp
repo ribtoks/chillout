@@ -94,7 +94,7 @@ void walkStackTrace(const std::function<void(const char * const)> &callback, cha
 
             int status;
             std::unique_ptr<char, FreeDeleter> demangled(abi::__cxa_demangle(info.dli_sname, NULL, 0, &status));
-            snprintf(stackFrame, 4096, "%-3d %*0p %s + %zd\n",
+            snprintf(stackFrame, stackFrameSize, "%-3d %*0p %s + %zd\n",
                      i, 2 + sizeof(void*) * 2, callstack[i],
                      status == 0 ? demangled.get() : info.dli_sname,
                      (char *)callstack[i] - (char *)info.dli_saddr);

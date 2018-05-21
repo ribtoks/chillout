@@ -13,4 +13,10 @@ endif()
 message("Debug flags are: ${CMAKE_CXX_FLAGS_DEBUG}")
 
 add_library(chillout SHARED STATIC ${SOURCES})
+
+if(UNIX)
+  target_link_libraries(chillout dl)
+endif()
+
+
 install(TARGETS chillout DESTINATION lib)
