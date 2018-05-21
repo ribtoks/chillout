@@ -10,7 +10,7 @@
 #include <cstring>
 #include <cstdint>
 
-#include <algorithm>
+#include <memory>
 
 #include "../defines.h"
 
@@ -65,7 +65,7 @@ char *demangleLine(char *line, char *memory) {
 }
 #else
 char *demangleLine(char *line, char *memory) {
-    return nulllptr;
+    return nullptr;
 }
 #endif
 
