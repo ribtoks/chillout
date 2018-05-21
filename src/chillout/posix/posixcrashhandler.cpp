@@ -20,9 +20,9 @@ const char s_MangledSymbolPrefix[] = "_Z";
 const char s_MangledSymbolCharacters[] = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
 struct FreeDeleter {
-  void operator()(void* ptr) const {
-    free(ptr);
-  }
+    void operator()(void* ptr) const {
+        free(ptr);
+    }
 };
 
 char *fake_alloc(char **memory, size_t size) {
@@ -149,6 +149,7 @@ void PosixCrashHandler::teardown() {
 
 void PosixCrashHandler::handleCrash() {
     if (m_BacktraceCallback) {
+        memset(m_Memory, 0, sizeof(m_Memory));
         walkStackTrace(m_BacktraceCallback, m_Memory);
     }
 
