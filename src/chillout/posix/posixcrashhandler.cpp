@@ -73,6 +73,33 @@ char *demangleLine(char *line, char *memory) {
 }
 #endif
 
+char *dlDemangle(void *addr, char *symbol, char *memory) {
+    Dl_info info;
+    if (dladdr(addr, &info) != 0) {
+        int status = -1;
+
+        const int stackFrameSize = 4096;
+        char *stackFrame = fake_alloc(&memory, stackFrameSize);
+                    
+        if ((info.dli_sname != NULL) && (info.dli_sname[0] == '_')) {
+            std::unique_ptr<char, FreeDeleter> demangled(abi::__cxa_demangle(info.dli_sname, NULL, 0, &status));
+            snprintf(stackFrame, stackFrameSize, "%-3d %*p %s + %zd\n",
+                     i, int(2 + sizeof(void*) * 2), addr,
+                     status == 0 ? demangled.get() :
+                     info.dli_sname == 0 ? symbol : info.dli_sname,
+                     (char *)addr - (char *)info.dli_saddr);
+
+        } else {
+            snprintf(stackFrame, stackFrameSize, "%-3d %*p %s\n",
+                     i, int(2 + sizeof(void*) * 2), addr, symbol);
+        }
+
+        return stackFrame;
+    }
+
+    return NULL;
+}
+
 void walkStackTrace(const std::function<void(const char * const)> &callback, char *memory, size_t memorySize, unsigned int maxFrames = 127) {
     const size_t framesSize = maxFrames * sizeof(void*);
     void **callstack = reinterpret_cast<void**>(fake_alloc(&memory, framesSize));
@@ -84,31 +111,13 @@ void walkStackTrace(const std::function<void(const char * const)> &callback, cha
     if (!symbolsPtr) { return; }
     
     char **symbols = symbolsPtr.get();
-    const int stackFrameSize = 4096;
 
     for (int i = stackOffset; i < frames; ++i) {
         //char* traceLine = symbols.get()[i];
-        Dl_info info;
-        if (dladdr(callstack[i], &info) && info.dli_sname) {
-            int status = -1;
-            memset(memory, 0, memorySize - framesSize - 1);
-            char *stackFrame = fake_alloc(&memory, stackFrameSize);
-                    
-            if (info.dli_sname[0] == '_') {
-                std::unique_ptr<char, FreeDeleter> demangled(abi::__cxa_demangle(info.dli_sname, NULL, 0, &status));
-                snprintf(stackFrame, stackFrameSize, "%-3d %*p %s + %zd\n",
-                         i, int(2 + sizeof(void*) * 2), callstack[i],
-                         status == 0 ? demangled.get() :
-                         info.dli_sname == 0 ? symbols[i] : info.dli_sname,
-                         (char *)callstack[i] - (char *)info.dli_saddr);
-
-            } else {
-                snprintf(stackFrame, stackFrameSize, "%-3d %*p %s\n",
-                         i, int(2 + sizeof(void*) * 2), callstack[i], symbols[i]);
-            }
-
+        memset(memory, 0, memorySize - framesSize - 1);
+        char *stackFrame = dlDemangle(callstack[i], symbols[i], memory);
+        if (stackFrame) {
             callback(stackFrame);
-        }
     }
 
     if (frames == maxFrames) {
