@@ -2,7 +2,7 @@
 
 #include <execinfo.h>
 #include <errno.h>
-#include <cxxabi.h>
+#include <dlfcn.h>
 #include <cxxabi.h>
 #include <cstdio>
 #include <cstdlib>
@@ -35,6 +35,8 @@ char *fake_alloc(char **memory, size_t size) {
 
 #ifdef __APPLE__
 char *demangleLine(char *line, char *memory) {
+    // 1   chillout_test                       0x0000000104d34e6e _ZN17PosixCrashHandler11handleCrashEv + 78
+    
     char *functionSymbol = fake_alloc(&memory, 1024);
     char *moduleName = fake_alloc(&memory, 1024);
     int offset = 0;
@@ -65,30 +67,48 @@ char *demangleLine(char *line, char *memory) {
 }
 #else
 char *demangleLine(char *line, char *memory) {
+    // /home/travis/build/ribtoks/chillout/build/src/tests/chillout_test() [0x40e274]
+    // /lib/x86_64-linux-gnu/libc.so.6(gsignal+0x37)
     return nullptr;
 }
 #endif
 
 void walkStackTrace(const std::function<void(const char * const)> &callback, char *memory, size_t memorySize, unsigned int maxFrames = 127) {
-    const size_t framesSize = (maxFrames + 2) * sizeof(void*);
-    void **trace = reinterpret_cast<void**>(fake_alloc(&memory, framesSize));
-    int frames = backtrace(trace, maxFrames + 2);
+    const size_t framesSize = maxFrames * sizeof(void*);
+    void **callstack = reinterpret_cast<void**>(fake_alloc(&memory, framesSize));
+    int frames = backtrace(callstack, maxFrames);
 
     const int stackOffset = trace[2] == trace[1] ? 2 : 1;
 
-    std::unique_ptr<char*, FreeDeleter> symbols(backtrace_symbols(trace, frames));
-    if (!symbols) { return; }
+    //std::unique_ptr<char*, FreeDeleter> symbols(backtrace_symbols(trace, frames));
+    //if (!symbols) { return; }
+
+    const int stackFrameSize = 4096
 
     for (int i = stackOffset; i < frames; ++i) {
         memset(memory, 0, memorySize - framesSize);
+        char *stackFrame = fake_alloc(&memory, stackFrameSize);
+        //char* traceLine = symbols.get()[i];
+        Dl_info info;
+        if (dladdr(callstack[i], &info)) {
 
-        char* traceLine = symbols.get()[i];
-        char *demangled = demangleLine(traceLine, memory);
-        if (demangled != nullptr) {
-            callback(demangled);
+            int status;
+            std::unique_ptr<char, FreeDeleter> demangled(abi::__cxa_demangle(info.dli_sname, NULL, 0, &status));
+            snprintf(stackFrame, 4096, "%-3d %*0p %s + %zd\n",
+                     i, 2 + sizeof(void*) * 2, callstack[i],
+                     status == 0 ? demangled.get() : info.dli_sname,
+                     (char *)callstack[i] - (char *)info.dli_saddr);
+
         } else {
-            callback(traceLine);
+            snprintf(stackFrame, stackFrameSize, "%-3d %*0p\n",
+                     i, 2 + sizeof(void*) * 2, callstack[i]);
         }
+
+        callback(stackFrame);
+    }
+
+    if (frames == maxFrames) {
+        callback("[truncated]\n");
     }
 }
 
