@@ -33,7 +33,7 @@ char *fake_alloc(char **memory, size_t size) {
     return allocated;
 }
 
-#ifdef DARWIN
+#ifdef __APPLE__
 bool demangleLine(char *line, char *memory) {
     char *functionSymbol = fake_alloc(&memory, 1024);
     char *moduleName = fake_alloc(&memory, 1024);
