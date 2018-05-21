@@ -43,7 +43,13 @@ class DISABLED_RecoveryTest : public ::testing::Test
 };
 
 TEST_F (RecoveryTest, PureVirtualMethodCallTest) {
-    ASSERT_EXIT(Derived(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGSEGV), "(::PureCallHandler|PosixCrashHandler::handleCrash)");
+#ifdef _WIN32
+    const char regex[] = "::PureCallHandler";
+#else
+    const char regex[] = "PosixCrashHandler::handleCrash";
+#endif
+    
+    ASSERT_EXIT(Derived(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGSEGV), regex);
 }
 
 TEST_F (RecoveryTest, AccessViolationTest) {
@@ -51,19 +57,43 @@ TEST_F (RecoveryTest, AccessViolationTest) {
 }
 
 TEST_F (RecoveryTest, InvalidParameterTest) {
-    ASSERT_EXIT(InvalidParameter(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGSEGV), "(::InvalidParameterHandler|PosixCrashHandler::handleCrash)");
+#ifdef _WIN32
+    const char regex[] = "::InvalidParameterHandler";
+#else
+    const char regex[] = "PosixCrashHandler::handleCrash";
+#endif
+        
+    ASSERT_EXIT(InvalidParameter(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGSEGV), regex);
 }
 
 TEST_F (RecoveryTest, SigillTest) {
-    ASSERT_EXIT(RaiseSigill(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGILL), "(::SigillHandler|posixSignalHandler)");
+#ifdef _WIN32
+    const char regex[] = "::SigillHandler";
+#else
+    const char regex[] = "posixSignalHandler";
+#endif
+
+    ASSERT_EXIT(RaiseSigill(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGILL), regex);
 }
 
 TEST_F (RecoveryTest, SigsegvTest) {
-    ASSERT_EXIT(RaiseSigsegv(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGSEGV), "(::SigsegvHandler|posixSignalHandler)");
+#ifdef _WIN32
+    const char regex[] = "::SigsegvHandler";
+#else
+    const char regex[] = "posixSignalHandler";
+#endif
+
+    ASSERT_EXIT(RaiseSigsegv(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGSEGV), regex);
 }
 
 TEST_F (RecoveryTest, SigtermTest) {
-    ASSERT_EXIT(RaiseSigterm(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGTERM), "(::SigtermHandler|posixSignalHandler)");
+#ifdef _WIN32
+    const char regex[] = "::SigtermHandler";
+#else
+    const char regex[] = "posixSignalHandler";
+#endif
+
+    ASSERT_EXIT(RaiseSigterm(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGTERM), regex);
 }
 
 // this test is disabled because you can catch c++ exceptions
@@ -80,5 +110,11 @@ TEST_F (DISABLED_RecoveryTest, StackOverflowTest) {
 }
 
 TEST_F (RecoveryTest, RaiseExceptionTest) {
-    ASSERT_EXIT(RaiseSehException(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGTERM), "Chillout SehHandler|posixSignalHandler");
+#ifdef _WIN32
+    const char regex[] = "Chillout SehHandler";
+#else
+    const char regex[] = "posixSignalHandler";
+#endif
+    ASSERT_EXIT(RaiseSehException(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGTERM), regex);
 }
+

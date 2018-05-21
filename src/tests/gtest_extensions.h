@@ -14,7 +14,9 @@ namespace extensions {
         // No implementation - assignment is unsupported.
         void operator=(const ExitedOrKilled& other);
 
+#ifndef _WIN32
         ::testing::KilledBySignal _killedBySignal;
+#endif
         ::testing::ExitedWithCode _exitedWithCode;
     };
 }
