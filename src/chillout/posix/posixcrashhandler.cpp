@@ -81,18 +81,19 @@ void walkStackTrace(const std::function<void(const char * const)> &callback, cha
     const int stackOffset = callstack[2] == callstack[1] ? 2 : 1;
 
     std::unique_ptr<char*, FreeDeleter> symbolsPtr(backtrace_symbols(callstack, frames));
-    if (!symbols) { return; }
+    if (!symbolsPtr) { return; }
     
     char **symbols = symbolsPtr.get();
     const int stackFrameSize = 4096;
 
     for (int i = stackOffset; i < frames; ++i) {
-        memset(memory, 0, memorySize - framesSize);
-        char *stackFrame = fake_alloc(&memory, stackFrameSize);
         //char* traceLine = symbols.get()[i];
         Dl_info info;
         if (dladdr(callstack[i], &info) && info.dli_sname) {
             int status = -1;
+            memset(memory, 0, memorySize - framesSize);
+            char *stackFrame = fake_alloc(&memory, stackFrameSize);
+                    
             if (info.dli_sname[0] == '_') {
                 std::unique_ptr<char, FreeDeleter> demangled(abi::__cxa_demangle(info.dli_sname, NULL, 0, &status));
                 snprintf(stackFrame, stackFrameSize, "%-3d %*p %s + %zd\n",
@@ -106,7 +107,8 @@ void walkStackTrace(const std::function<void(const char * const)> &callback, cha
                          i, int(2 + sizeof(void*) * 2), callstack[i], symbols[i]);
             }
 
-        callback(stackFrame);
+            callback(stackFrame);
+        }
     }
 
     if (frames == maxFrames) {
