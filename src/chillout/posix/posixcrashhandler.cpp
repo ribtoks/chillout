@@ -67,8 +67,8 @@ void walkStackTrace(const std::function<void(const char * const)> &callback, cha
     char **symbols = symbolsPtr.get();
 
     for (int i = stackOffset; i < frames; ++i) {
-        //char* traceLine = symbols.get()[i];
         memset(memory, 0, memorySize - framesSize - 1);
+
         char *stackFrame = dlDemangle(callstack[i], symbols[i], i, memory);
         if (stackFrame) {
             callback(stackFrame);
@@ -155,5 +155,3 @@ void PosixCrashHandler::setCrashCallback(const std::function<void()> &callback) 
 void PosixCrashHandler::setBacktraceCallback(const std::function<void(const char * const)> &callback) {
     m_BacktraceCallback = callback;
 }
-
-

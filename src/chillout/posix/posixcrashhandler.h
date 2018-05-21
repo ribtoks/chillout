@@ -3,7 +3,7 @@
 
 #include <functional>
 
-// code mosty from https://oroboro.com/stack-trace-on-crash/
+
 class PosixCrashHandler {
 public:
     static PosixCrashHandler& getInstance()
@@ -30,13 +30,3 @@ private:
 };
 
 #endif // POSIXCRASHHANDLER_H
-
-
-
-
-
-
-
-
-
-
