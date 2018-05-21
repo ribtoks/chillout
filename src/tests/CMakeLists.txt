@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.6)
 
-project(chillout_tests_project)
+project(chillout_tests_project CXX)
 
 set(SOURCES tests_main.cpp tests_source.h tests_source.cpp tests_crashes.cpp tests_recovery.cpp gtest_extensions.h gtest_extensions.cpp)
 
