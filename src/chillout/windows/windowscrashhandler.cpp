@@ -556,7 +556,7 @@ void WindowsCrashHandler::SetProcessExceptionHandlers()
     m_prevPurec = _set_purecall_handler(PureCallHandler);
 
     // Catch new operator memory allocation exceptions
-    // _set_new_mode(1); // Force malloc() to call new handler too
+    //_set_new_mode(1); // Force malloc() to call new handler too
     m_prevNewHandler = _set_new_handler(NewHandler);
 #endif
     
@@ -914,9 +914,3 @@ void WindowsCrashHandler::SigtermHandler(int)
 
     DoHandleCrash(pExceptionPtrs);
 }
-
-
-
-
-
-

@@ -15,7 +15,7 @@ endif()
 add_definitions(-DCRASHDUMPSDIR=${CRASH_DUMPS_ROOT})
 message("Crash dumps root: ${CRASH_DUMPS_ROOT}")
 
-if(UNIX)
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -rdynamic")
 endif()
 

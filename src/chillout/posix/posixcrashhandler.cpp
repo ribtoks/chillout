@@ -14,11 +14,6 @@
 
 #include "../defines.h"
 
-#define MAX_ENTRY_LENGTH 2048
-
-const char s_MangledSymbolPrefix[] = "_Z";
-const char s_MangledSymbolCharacters[] = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
 struct FreeDeleter {
     void operator()(void* ptr) const {
         free(ptr);
@@ -32,46 +27,6 @@ char *fake_alloc(char **memory, size_t size) {
     *memory += size + 1;
     return allocated;
 }
-
-#ifdef __APPLE__
-char *demangleLine(char *line, char *memory) {
-    // 1   chillout_test                       0x0000000104d34e6e _ZN17PosixCrashHandler11handleCrashEv + 78
-    
-    char *functionSymbol = fake_alloc(&memory, 1024);
-    char *moduleName = fake_alloc(&memory, 1024);
-    int offset = 0;
-    char *addr = fake_alloc(&memory, 64);
-
-    // split the string, take out chunks out of stack trace
-    // we are primarily interested in module, function and address
-    sscanf(line, "%*s %s %s %s %*s %d", moduleName, addr, functionSymbol, &offset);
-
-    int validCppName = 0;
-    //  if this is a C++ library, symbol will be demangled
-    //  on success function returns 0
-    std::unique_ptr<char, FreeDeleter> functionName(abi::__cxa_demangle(functionSymbol, NULL, 0, &validCppName));
-    
-    char *stackFrame = fake_alloc(&memory, 4096);
-    if (validCppName == 0) {
-        // success
-        sprintf(stackFrame, "(%s)\t0x%s — %s + %d\n", moduleName, addr, functionName.get(), offset);
-    } else {
-        //  in the above traceback (in comments) last entry is not
-        //  from C++ binary, last frame, libdyld.dylib, is printed
-        //  from here
-        sprintf(stackFrame, "(%s)\t0x%s — %s + %d\n",
-                moduleName, addr, functionName.get(), offset);
-    }
-
-    return stackFrame;
-}
-#else
-char *demangleLine(char *line, char *memory) {
-    // /home/travis/build/ribtoks/chillout/build/src/tests/chillout_test() [0x40e274]
-    // /lib/x86_64-linux-gnu/libc.so.6(gsignal+0x37)
-    return nullptr;
-}
-#endif
 
 char *dlDemangle(void *addr, char *symbol, int frameIndex, char *memory) {
     Dl_info info;

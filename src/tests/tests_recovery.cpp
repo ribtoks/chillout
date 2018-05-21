@@ -56,6 +56,7 @@ TEST_F (RecoveryTest, AccessViolationTest) {
     ASSERT_EXIT(AccessViolation(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGSEGV), "AccessViolationTest");
 }
 
+#ifdef __linux__ 
 TEST_F (RecoveryTest, InvalidParameterTest) {
 #ifdef _WIN32
     const char regex[] = "::InvalidParameterHandler";
@@ -65,6 +66,7 @@ TEST_F (RecoveryTest, InvalidParameterTest) {
         
     ASSERT_EXIT(InvalidParameter(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGSEGV), regex);
 }
+#endif
 
 TEST_F (RecoveryTest, SigillTest) {
 #ifdef _WIN32
@@ -117,4 +119,3 @@ TEST_F (RecoveryTest, RaiseExceptionTest) {
 #endif
     ASSERT_EXIT(RaiseSehException(), ::extensions::ExitedOrKilled(CHILLOUT_EXIT_CODE, SIGTERM), regex);
 }
-
