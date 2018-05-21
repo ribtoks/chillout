@@ -42,7 +42,7 @@ bool demangleLine(char *line, char *memory) {
 
     // split the string, take out chunks out of stack trace
     // we are primarily interested in module, function and address
-    sscanf(strs[i], "%*s %s %s %s %*s %d", moduleName, addr, functionSymbol, &offset);
+    sscanf(line, "%*s %s %s %s %*s %d", moduleName, addr, functionSymbol, &offset);
 
     int validCppName = 0;
     //  if this is a C++ library, symbol will be demangled
@@ -52,13 +52,13 @@ bool demangleLine(char *line, char *memory) {
     char *stackFrame = fake_alloc(&memory, 4096);
     if (validCppName == 0) {
         // success
-        sprintf(stackFrame, "(%s)\t0x%s — %s + %d\n", moduleName, addr, functionName, offset);
+        sprintf(stackFrame, "(%s)\t0x%s — %s + %d\n", moduleName, addr, functionName.get(), offset);
     } else {
         //  in the above traceback (in comments) last entry is not
         //  from C++ binary, last frame, libdyld.dylib, is printed
         //  from here
         sprintf(stackFrame, "(%s)\t0x%s — %s + %d\n",
-                moduleName, addr, functionName, offset);
+                moduleName, addr, functionName.get(), offset);
     }
 
     return true;
