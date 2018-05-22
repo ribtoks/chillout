@@ -7,16 +7,7 @@
 #include "tests_source.h"
 #include "gtest_extensions.h"
 #include <signal.h>
-
-#define STRINGIZE_(x) #x
-#define STRINGIZE(x) STRINGIZE_(x)
-
-#ifdef _WIN32
-#define WIDEN(quote) WIDEN2(quote)
-#define WIDEN2(quote) L##quote
-#else
-#define WIDEN(quote) quote
-#endif
+#include <defines.h>
 
 void chilltrace(const char * const stackEntry) {
     if (stackEntry) {

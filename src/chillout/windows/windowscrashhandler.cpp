@@ -17,6 +17,8 @@
 #include <locale>
 #include <codecvt>
 #include <ctime>
+#include <sstream>
+#include "../common/common.h"
 
 #if _MSC_VER < 1400
 #define strcpy_s(dst, len, src) strcpy(dst, src)
@@ -56,83 +58,84 @@
     EXTERNC void * _ReturnAddress(void);
 #endif
 
-class StackWalkerWithCallback : public StackWalker
-{
-public:
-    StackWalkerWithCallback(const std::function<void(const char * const)> &callback):
-        StackWalker(RetrieveVerbose | SymBuildPath),
-        m_Callback(callback)
-    { }
-    
-protected:
-  virtual void OnOutput(LPCSTR szText) override {
-      m_Callback(szText);
-  }
+namespace Debug {
+    class StackWalkerWithCallback : public StackWalker
+    {
+    public:
+        StackWalkerWithCallback(const std::function<void(const char * const)> &callback):
+            StackWalker(RetrieveVerbose | SymBuildPath),
+            m_callback(callback)
+        { }
 
-private:
-    std::function<void(const char * const)> m_Callback;
-};
+    protected:
+        virtual void OnOutput(LPCSTR szText) override {
+            m_callback(szText);
+        }
 
-BOOL PreventSetUnhandledExceptionFilter()
-{
-    HMODULE hKernel32 = LoadLibrary(_T("kernel32.dll"));
-    if (hKernel32 == NULL) return FALSE;
-    void *pOrgEntry = GetProcAddress(hKernel32, "SetUnhandledExceptionFilter");
-    if (pOrgEntry == NULL) return FALSE;
+    private:
+        std::function<void(const char * const)> m_callback;
+    };
+
+    BOOL PreventSetUnhandledExceptionFilter()
+    {
+        HMODULE hKernel32 = LoadLibrary(_T("kernel32.dll"));
+        if (hKernel32 == NULL) return FALSE;
+        void *pOrgEntry = GetProcAddress(hKernel32, "SetUnhandledExceptionFilter");
+        if (pOrgEntry == NULL) return FALSE;
 
 #ifdef _M_IX86
-    // Code for x86:
-    // 33 C0                xor         eax,eax
-    // C2 04 00             ret         4
-    unsigned char szExecute[] = { 0x33, 0xC0, 0xC2, 0x04, 0x00 };
+        // Code for x86:
+        // 33 C0                xor         eax,eax
+        // C2 04 00             ret         4
+        unsigned char szExecute[] = { 0x33, 0xC0, 0xC2, 0x04, 0x00 };
 #elif _M_X64
-    // 33 C0                xor         eax,eax
-    // C3                   ret
-    unsigned char szExecute[] = { 0x33, 0xC0, 0xC3 };
+        // 33 C0                xor         eax,eax
+        // C3                   ret
+        unsigned char szExecute[] = { 0x33, 0xC0, 0xC3 };
 #else
 #error "The following code only works for x86 and x64!"
 #endif
 
-    SIZE_T bytesWritten = 0;
-    BOOL bRet = WriteProcessMemory(GetCurrentProcess(),
-                                   pOrgEntry, szExecute, sizeof(szExecute), &bytesWritten);
-    return bRet;
-}
+        SIZE_T bytesWritten = 0;
+        BOOL bRet = WriteProcessMemory(GetCurrentProcess(),
+                                       pOrgEntry, szExecute, sizeof(szExecute), &bytesWritten);
+        return bRet;
+    }
 
-BOOL CALLBACK MyMiniDumpCallback(
-    PVOID                            pParam,
-    const PMINIDUMP_CALLBACK_INPUT   pInput,
-    PMINIDUMP_CALLBACK_OUTPUT        pOutput
-)
-{
-    BOOL bRet = FALSE;
-
-    // Check parameters
-
-    if( pInput == 0 )
-        return FALSE;
-
-    if( pOutput == 0 )
-        return FALSE;
-
-    // Process the callbacks
-    WindowsCrashHandler *handler = (WindowsCrashHandler*)pParam;
-
-    switch( pInput->CallbackType )
+    BOOL CALLBACK MyMiniDumpCallback(
+            PVOID                            pParam,
+            const PMINIDUMP_CALLBACK_INPUT   pInput,
+            PMINIDUMP_CALLBACK_OUTPUT        pOutput
+            )
     {
+        BOOL bRet = FALSE;
+
+        // Check parameters
+
+        if( pInput == 0 )
+            return FALSE;
+
+        if( pOutput == 0 )
+            return FALSE;
+
+        // Process the callbacks
+        WindowsCrashHandler *handler = (WindowsCrashHandler*)pParam;
+
+        switch( pInput->CallbackType )
+        {
         case IncludeModuleCallback:
         {
             // Include the module into the dump
             bRet = TRUE;
         }
-        break;
+            break;
 
         case IncludeThreadCallback:
         {
             // Include the thread into the dump
             bRet = TRUE;
         }
-        break;
+            break;
 
         case ModuleCallback:
         {
@@ -147,329 +150,314 @@ BOOL CALLBACK MyMiniDumpCallback(
                 }
             }
 
-            if( !(pOutput->ModuleWriteFlags & ModuleReferencedByMemory) ) 
+            if( !(pOutput->ModuleWriteFlags & ModuleReferencedByMemory) )
             {
-                // No, it does not - exclude it 
-                pOutput->ModuleWriteFlags &= (~ModuleWriteModule); 
+                // No, it does not - exclude it
+                pOutput->ModuleWriteFlags &= (~ModuleWriteModule);
             }
 
             bRet = TRUE;
         }
-        break;
+            break;
 
         case ThreadCallback:
         {
             // Include all thread information into the minidump
             bRet = TRUE;
         }
-        break;
+            break;
 
         case ThreadExCallback:
         {
             // Include this information
             bRet = TRUE;
         }
-        break;
+            break;
 
         case MemoryCallback:
         {
             // We do not include any information here -> return FALSE
             bRet = FALSE;
         }
-        break;
+            break;
 
         case CancelCallback:
             break;
+        }
+
+        return bRet;
+
     }
 
-    return bRet;
-
-}
-
-BOOL CreateMiniDump(LPCTSTR lpFileName, EXCEPTION_POINTERS * pep, MINIDUMP_TYPE mdt, WindowsCrashHandler * wch)
-{
-    BOOL rv = FALSE;
-    // Open the file
-
-    HANDLE hFile = CreateFile( lpFileName, GENERIC_READ | GENERIC_WRITE,
-                               0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
-
-    if( ( hFile != NULL ) && ( hFile != INVALID_HANDLE_VALUE ) )
+    BOOL CreateMiniDump(LPCTSTR lpFileName, EXCEPTION_POINTERS * pep, MINIDUMP_TYPE mdt, WindowsCrashHandler * wch)
     {
-        // Create the minidump
+        BOOL rv = FALSE;
+        // Open the file
 
-        MINIDUMP_EXCEPTION_INFORMATION mdei;
+        HANDLE hFile = CreateFile( lpFileName, GENERIC_READ | GENERIC_WRITE,
+                                   0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
 
-        mdei.ThreadId           = GetCurrentThreadId();
-        mdei.ExceptionPointers  = pep;
-        mdei.ClientPointers     = FALSE;
+        if( ( hFile != NULL ) && ( hFile != INVALID_HANDLE_VALUE ) )
+        {
+            // Create the minidump
 
-        MINIDUMP_CALLBACK_INFORMATION mci;
+            MINIDUMP_EXCEPTION_INFORMATION mdei;
 
-        mci.CallbackRoutine     = (MINIDUMP_CALLBACK_ROUTINE)MyMiniDumpCallback;
-        mci.CallbackParam       = wch;
+            mdei.ThreadId           = GetCurrentThreadId();
+            mdei.ExceptionPointers  = pep;
+            mdei.ClientPointers     = FALSE;
 
-        rv = MiniDumpWriteDump( GetCurrentProcess(), GetCurrentProcessId(),
-                                     hFile, mdt, (pep != 0) ? &mdei : 0, 0, &mci );
+            MINIDUMP_CALLBACK_INFORMATION mci;
 
-        // if( !rv )
-        //     _tprintf( _T("MiniDumpWriteDump failed. Error: %u \n"), GetLastError() );
-        // else
-        //     _tprintf( _T("Minidump created.\n") );
+            mci.CallbackRoutine     = (MINIDUMP_CALLBACK_ROUTINE)MyMiniDumpCallback;
+            mci.CallbackParam       = wch;
 
-        // Close the file
+            rv = MiniDumpWriteDump( GetCurrentProcess(), GetCurrentProcessId(),
+                                    hFile, mdt, (pep != 0) ? &mdei : 0, 0, &mci );
 
-        CloseHandle( hFile );
+            // Close the file
+            CloseHandle( hFile );
+        }
 
+        fflush(stdout);
+        fflush(stderr);
+
+        return rv;
     }
-    else
-    {
-        //_tprintf( _T("CreateFile failed. Error: %u \n"), GetLastError() );
-    }
 
-    fflush(stdout);
-    fflush(stderr);
+    // The following code gets exception pointers using a workaround found in CRT code.
+    void GetExceptionPointers(DWORD dwExceptionCode,
+                              EXCEPTION_POINTERS** ppExceptionPointers) {
+        // The following code was taken from VC++ 8.0 CRT (invarg.c: line 104)
 
-    return rv;
-}
-
-// The following code gets exception pointers using a workaround found in CRT code.
-void GetExceptionPointers(DWORD dwExceptionCode,
-                          EXCEPTION_POINTERS** ppExceptionPointers)
-{
-    // The following code was taken from VC++ 8.0 CRT (invarg.c: line 104)
-
-    EXCEPTION_RECORD ExceptionRecord;
-    CONTEXT ContextRecord;
-    memset(&ContextRecord, 0, sizeof(CONTEXT));
+        EXCEPTION_RECORD ExceptionRecord;
+        CONTEXT ContextRecord;
+        memset(&ContextRecord, 0, sizeof(CONTEXT));
 
 #ifdef _X86_
 
-    __asm {
-        mov dword ptr [ContextRecord.Eax], eax
-            mov dword ptr [ContextRecord.Ecx], ecx
-            mov dword ptr [ContextRecord.Edx], edx
-            mov dword ptr [ContextRecord.Ebx], ebx
-            mov dword ptr [ContextRecord.Esi], esi
-            mov dword ptr [ContextRecord.Edi], edi
-            mov word ptr [ContextRecord.SegSs], ss
-            mov word ptr [ContextRecord.SegCs], cs
-            mov word ptr [ContextRecord.SegDs], ds
-            mov word ptr [ContextRecord.SegEs], es
-            mov word ptr [ContextRecord.SegFs], fs
-            mov word ptr [ContextRecord.SegGs], gs
-            pushfd
-            pop [ContextRecord.EFlags]
-    }
+        __asm {
+            mov dword ptr [ContextRecord.Eax], eax
+                    mov dword ptr [ContextRecord.Ecx], ecx
+                    mov dword ptr [ContextRecord.Edx], edx
+                    mov dword ptr [ContextRecord.Ebx], ebx
+                    mov dword ptr [ContextRecord.Esi], esi
+                    mov dword ptr [ContextRecord.Edi], edi
+                    mov word ptr [ContextRecord.SegSs], ss
+                    mov word ptr [ContextRecord.SegCs], cs
+                    mov word ptr [ContextRecord.SegDs], ds
+                    mov word ptr [ContextRecord.SegEs], es
+                    mov word ptr [ContextRecord.SegFs], fs
+                    mov word ptr [ContextRecord.SegGs], gs
+                    pushfd
+                    pop [ContextRecord.EFlags]
+        }
 
-    ContextRecord.ContextFlags = CONTEXT_CONTROL;
+        ContextRecord.ContextFlags = CONTEXT_CONTROL;
 #pragma warning(push)
 #pragma warning(disable:4311)
-    ContextRecord.Eip = (ULONG)_ReturnAddress();
-    ContextRecord.Esp = (ULONG)_AddressOfReturnAddress();
+        ContextRecord.Eip = (ULONG)_ReturnAddress();
+        ContextRecord.Esp = (ULONG)_AddressOfReturnAddress();
 #pragma warning(pop)
-    ContextRecord.Ebp = *((ULONG *)_AddressOfReturnAddress()-1);
+        ContextRecord.Ebp = *((ULONG *)_AddressOfReturnAddress()-1);
 
 
 #elif defined (_IA64_) || defined (_AMD64_)
 
-    /* Need to fill up the Context in IA64 and AMD64. */
-    RtlCaptureContext(&ContextRecord);
+        /* Need to fill up the Context in IA64 and AMD64. */
+        RtlCaptureContext(&ContextRecord);
 
 #else  /* defined (_IA64_) || defined (_AMD64_) */
 
-    ZeroMemory(&ContextRecord, sizeof(ContextRecord));
+        ZeroMemory(&ContextRecord, sizeof(ContextRecord));
 
 #endif  /* defined (_IA64_) || defined (_AMD64_) */
 
-    ZeroMemory(&ExceptionRecord, sizeof(EXCEPTION_RECORD));
+        ZeroMemory(&ExceptionRecord, sizeof(EXCEPTION_RECORD));
 
-    ExceptionRecord.ExceptionCode = dwExceptionCode;
-    ExceptionRecord.ExceptionAddress = _ReturnAddress();
+        ExceptionRecord.ExceptionCode = dwExceptionCode;
+        ExceptionRecord.ExceptionAddress = _ReturnAddress();
 
-    ///
+        ///
 
-    EXCEPTION_RECORD* pExceptionRecord = new EXCEPTION_RECORD;
-    memcpy(pExceptionRecord, &ExceptionRecord, sizeof(EXCEPTION_RECORD));
-    CONTEXT* pContextRecord = new CONTEXT;
-    memcpy(pContextRecord, &ContextRecord, sizeof(CONTEXT));
+        EXCEPTION_RECORD* pExceptionRecord = new EXCEPTION_RECORD;
+        memcpy(pExceptionRecord, &ExceptionRecord, sizeof(EXCEPTION_RECORD));
+        CONTEXT* pContextRecord = new CONTEXT;
+        memcpy(pContextRecord, &ContextRecord, sizeof(CONTEXT));
 
-    *ppExceptionPointers = new EXCEPTION_POINTERS;
-    (*ppExceptionPointers)->ExceptionRecord = pExceptionRecord;
-    (*ppExceptionPointers)->ContextRecord = pContextRecord;
-}
-
-void DoHandleCrash(EXCEPTION_POINTERS* pExPtrs)
-{
-    WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-    handler.handleCrash(pExPtrs);    
-}
-
-// http://groups.google.com/group/crashrpt/browse_thread/thread/a1dbcc56acb58b27/fbd0151dd8e26daf?lnk=gst&q=stack+overflow#fbd0151dd8e26daf
-// Thread procedure doing the dump for stack overflow.
-DWORD WINAPI StackOverflowThreadFunction(LPVOID lpParameter)
-{
-    PEXCEPTION_POINTERS pExceptionPtrs =
-        reinterpret_cast<PEXCEPTION_POINTERS>(lpParameter);
-
-    if (pExceptionPtrs == NULL) {
-        GetExceptionPointers(CR_SEH_EXCEPTION, &pExceptionPtrs);
+        *ppExceptionPointers = new EXCEPTION_POINTERS;
+        (*ppExceptionPointers)->ExceptionRecord = pExceptionRecord;
+        (*ppExceptionPointers)->ContextRecord = pContextRecord;
     }
 
-    DoHandleCrash(pExceptionPtrs);
+    void DoHandleCrash(EXCEPTION_POINTERS* pExPtrs) {
+        WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
+        handler.handleCrash(pExPtrs);
+    }
 
-    TerminateProcess(GetCurrentProcess(), CHILLOUT_EXIT_CODE);
+    // http://groups.google.com/group/crashrpt/browse_thread/thread/a1dbcc56acb58b27/fbd0151dd8e26daf?lnk=gst&q=stack+overflow#fbd0151dd8e26daf
+    // Thread procedure doing the dump for stack overflow.
+    DWORD WINAPI StackOverflowThreadFunction(LPVOID lpParameter) {
+        PEXCEPTION_POINTERS pExceptionPtrs =
+                reinterpret_cast<PEXCEPTION_POINTERS>(lpParameter);
 
-    return 0;
-}
+        if (pExceptionPtrs == NULL) {
+            GetExceptionPointers(CR_SEH_EXCEPTION, &pExceptionPtrs);
+        }
 
-static LONG WINAPI SehHandler(EXCEPTION_POINTERS* pExPtrs)
-{
+        DoHandleCrash(pExceptionPtrs);
+
+        TerminateProcess(GetCurrentProcess(), CHILLOUT_EXIT_CODE);
+
+        return 0;
+    }
+
+    static LONG WINAPI SehHandler(EXCEPTION_POINTERS* pExPtrs) {
 #ifdef _DEBUG
-    fprintf(stderr, "Chillout SehHandler");
+        fprintf(stderr, "Chillout SehHandler");
 #endif
-    
+
 #ifdef _M_IX86
-    if (pExPtrs->ExceptionRecord->ExceptionCode == EXCEPTION_STACK_OVERFLOW)
-    {
-        // http://groups.google.com/group/crashrpt/browse_thread/thread/a1dbcc56acb58b27/fbd0151dd8e26daf?lnk=gst&q=stack+overflow#fbd0151dd8e26daf
-        HANDLE thread = ::CreateThread(0, 0,
-                                       &StackOverflowThreadFunction, pExceptionPtrs, 0, 0);
-        DWORD dwMilliseconds = 1000 * 30; // 30 seconds
-        ::WaitForSingleObject(thread, dwMilliseconds);
-        ::CloseHandle(thread);
+        if (pExPtrs->ExceptionRecord->ExceptionCode == EXCEPTION_STACK_OVERFLOW)
+        {
+            // http://groups.google.com/group/crashrpt/browse_thread/thread/a1dbcc56acb58b27/fbd0151dd8e26daf?lnk=gst&q=stack+overflow#fbd0151dd8e26daf
+            HANDLE thread = ::CreateThread(0, 0,
+                                           &StackOverflowThreadFunction, pExceptionPtrs, 0, 0);
+            DWORD dwMilliseconds = 1000 * 30; // 30 seconds
+            ::WaitForSingleObject(thread, dwMilliseconds);
+            ::CloseHandle(thread);
+            return EXCEPTION_EXECUTE_HANDLER;
+        }
+#endif
+
+        if (pExPtrs == NULL) {
+            GetExceptionPointers(CR_SEH_EXCEPTION, &pExPtrs);
+        }
+
+        DoHandleCrash(pExPtrs);
+
+        TerminateProcess(GetCurrentProcess(), CHILLOUT_EXIT_CODE);
+
+        // unreachable
         return EXCEPTION_EXECUTE_HANDLER;
     }
-#endif
 
-    if (pExPtrs == NULL) {
-        GetExceptionPointers(CR_SEH_EXCEPTION, &pExPtrs);
-    }
+    // The following code is intended to fix the issue with 32-bit applications in 64-bit environment.
+    // http://support.microsoft.com/kb/976038/en-us
+    // http://code.google.com/p/crashrpt/issues/detail?id=104
+    void EnableCrashingOnCrashes() {
+        typedef BOOL (WINAPI *tGetPolicy)(LPDWORD lpFlags);
+        typedef BOOL (WINAPI *tSetPolicy)(DWORD dwFlags);
+        static const DWORD EXCEPTION_SWALLOWING = 0x1;
 
-    DoHandleCrash(pExPtrs);
-
-    TerminateProcess(GetCurrentProcess(), CHILLOUT_EXIT_CODE);
-
-    // unreachable
-    return EXCEPTION_EXECUTE_HANDLER;
-}
-
-// The following code is intended to fix the issue with 32-bit applications in 64-bit environment.
-// http://support.microsoft.com/kb/976038/en-us
-// http://code.google.com/p/crashrpt/issues/detail?id=104
-void EnableCrashingOnCrashes()
-{
-    typedef BOOL (WINAPI *tGetPolicy)(LPDWORD lpFlags);
-    typedef BOOL (WINAPI *tSetPolicy)(DWORD dwFlags);
-    static const DWORD EXCEPTION_SWALLOWING = 0x1;
-
-    const HMODULE kernel32 = LoadLibraryA("kernel32.dll");
-    const tGetPolicy pGetPolicy = (tGetPolicy)GetProcAddress(kernel32, "GetProcessUserModeExceptionPolicy");
-    const tSetPolicy pSetPolicy = (tSetPolicy)GetProcAddress(kernel32, "SetProcessUserModeExceptionPolicy");
-    if(pGetPolicy && pSetPolicy)
-    {
-        DWORD dwFlags;
-        if(pGetPolicy(&dwFlags))
+        const HMODULE kernel32 = LoadLibraryA("kernel32.dll");
+        const tGetPolicy pGetPolicy = (tGetPolicy)GetProcAddress(kernel32, "GetProcessUserModeExceptionPolicy");
+        const tSetPolicy pSetPolicy = (tSetPolicy)GetProcAddress(kernel32, "SetProcessUserModeExceptionPolicy");
+        if(pGetPolicy && pSetPolicy)
         {
-            // Turn off the filter
-            pSetPolicy(dwFlags & ~EXCEPTION_SWALLOWING);
+            DWORD dwFlags;
+            if(pGetPolicy(&dwFlags))
+            {
+                // Turn off the filter
+                pSetPolicy(dwFlags & ~EXCEPTION_SWALLOWING);
+            }
         }
     }
-}
 
-WindowsCrashHandler::WindowsCrashHandler()
-{
-    m_oldSehHandler = NULL;
+    WindowsCrashHandler::WindowsCrashHandler() {
+        m_oldSehHandler = NULL;
 
 #if _MSC_VER>=1300
-    m_prevPurec = NULL;
-    m_prevNewHandler = NULL;
+        m_prevPurec = NULL;
+        m_prevNewHandler = NULL;
 #endif
 
 #if _MSC_VER>=1300 && _MSC_VER<1400    
-    m_prevSec = NULL;
+        m_prevSec = NULL;
 #endif
 
 #if _MSC_VER>=1400
-    m_prevInvpar = NULL;
+        m_prevInvpar = NULL;
 #endif  
 
-    m_prevSigABRT = NULL;
-    m_prevSigINT = NULL;
-    m_prevSigTERM = NULL;
+        m_prevSigABRT = NULL;
+        m_prevSigINT = NULL;
+        m_prevSigTERM = NULL;
 
-    m_crashDumpSize = CrashDumpNormal;
+        m_crashDumpSize = CrashDumpNormal;
 
-    m_crtReportHook = NULL;
-}
-
-void WindowsCrashHandler::setup(const std::wstring &appName, const std::wstring &dumpsDir)
-{
-    m_appName = appName;
-    m_dumpsDir = dumpsDir;
-
-    if (!m_dumpsDir.empty() &&
-        m_dumpsDir[m_dumpsDir.size() - 1] == L'\\') {
-        m_dumpsDir.pop_back();
+        m_crtReportHook = NULL;
     }
-    
-    EnableCrashingOnCrashes();
-    setProcessExceptionHandlers();
-    setThreadExceptionHandlers();
-}
 
-void WindowsCrashHandler::teardown()
-{
-    unsetProcessExceptionHandlers();
-    unsetThreadExceptionHandlers();
-}
+    void WindowsCrashHandler::setup(const std::wstring &appName, const std::wstring &dumpsDir) {
+        m_appName = appName;
 
-void WindowsCrashHandler::setCrashDumpSize(CrashDumpSize size)
-{
-    m_crashDumpSize = size;
-}
+        if (!appName.empty() && !dumpsDir.empty()) {
+            std::wstring path = dumpsDir;
+            while ((path.size() > 1) &&
+                   (path[path.size() - 1] == L'\\')) {
+                path.erase(path.size() - 1);
+            }
 
-void WindowsCrashHandler::setCrashCallback(const std::function<void()> &crashCallback)
-{
-    m_crashCallback = crashCallback;
-}
+            std::wstringstream s;
+            s << L"\\\\?\\" << path << L'\\' << appName;
+            formatDateTime(s, now(), WIDEN(CHILLOUT_DATETIME));
+            s << ".dmp";
+            std::wstring pathToCrashFile = s.str();
+            using convert_type = std::codecvt_utf8<wchar_t>;
+            std::wstring_convert<convert_type, wchar_t> converter;
+            m_pathToCrashDump = converter.to_bytes(pathToCrashFile);
+        }
 
-void WindowsCrashHandler::setBacktraceCallback(const std::function<void(const char * const)> &backtraceCallback)
-{
-    m_backtraceCallback = backtraceCallback;
-}
-
-void WindowsCrashHandler::handleCrash(EXCEPTION_POINTERS* pExPtrs)
-{
-    std::lock_guard<std::mutex> guard(m_crashMutex);
-    
-    backtrace(pExPtrs);
-    createDump(pExPtrs);
-    
-    if (m_crashCallback)
-    {
-        m_crashCallback();
+        EnableCrashingOnCrashes();
+        setProcessExceptionHandlers();
+        setThreadExceptionHandlers();
     }
-    
-    // Terminate process
-    TerminateProcess(GetCurrentProcess(), CHILLOUT_EXIT_CODE);
-}
 
-void WindowsCrashHandler::backtrace(EXCEPTION_POINTERS* pExPtrs)
-{
-    if (m_backtraceCallback)
-    {
-        StackWalkerWithCallback sw(m_backtraceCallback);
-        sw.ShowCallstack(GetCurrentThread(), pExPtrs->ContextRecord);
+    void WindowsCrashHandler::teardown() {
+        unsetProcessExceptionHandlers();
+        unsetThreadExceptionHandlers();
     }
-}
 
-void WindowsCrashHandler::createDump(EXCEPTION_POINTERS* pExPtrs)
-{
-    MINIDUMP_TYPE mdt = (MINIDUMP_TYPE)(MiniDumpNormal);
+    void WindowsCrashHandler::setCrashDumpSize(CrashDumpSize size) {
+        m_crashDumpSize = size;
+    }
 
-    switch (m_crashDumpSize)
-    {
+    void WindowsCrashHandler::setCrashCallback(const std::function<void()> &callback) {
+        m_crashCallback = callback;
+    }
+
+    void WindowsCrashHandler::setBacktraceCallback(const std::function<void(const char * const)> &callback) {
+        m_backtraceCallback = callback;
+    }
+
+    void WindowsCrashHandler::handleCrash(EXCEPTION_POINTERS* pExPtrs) {
+        std::lock_guard<std::mutex> guard(m_crashMutex);
+        (void)guard;
+
+        backtrace(pExPtrs);
+        createDump(pExPtrs, m_pathToCrashDump);
+
+        if (m_crashCallback) {
+            m_crashCallback();
+        }
+
+        // Terminate process
+        TerminateProcess(GetCurrentProcess(), CHILLOUT_EXIT_CODE);
+    }
+
+    void WindowsCrashHandler::backtrace(EXCEPTION_POINTERS* pExPtrs) {
+        if (m_backtraceCallback) {
+            StackWalkerWithCallback sw(m_backtraceCallback);
+            sw.ShowCallstack(GetCurrentThread(), pExPtrs->ContextRecord);
+        }
+    }
+
+    void WindowsCrashHandler::createDump(EXCEPTION_POINTERS* pExPtrs, const std::string &path) {
+        MINIDUMP_TYPE mdt = (MINIDUMP_TYPE)(MiniDumpNormal);
+
+        switch (m_crashDumpSize)
+        {
         case CrashDumpSmall:
             mdt = (MINIDUMP_TYPE)(MiniDumpScanMemory |
                                   MiniDumpWithThreadInfo);
@@ -477,440 +465,423 @@ void WindowsCrashHandler::createDump(EXCEPTION_POINTERS* pExPtrs)
         case CrashDumpNormal:
         {
             mdt = (MINIDUMP_TYPE)(MiniDumpScanMemory |
-                    MiniDumpWithHandleData |
-                    MiniDumpWithThreadInfo |
-                    MiniDumpWithIndirectlyReferencedMemory);
+                                  MiniDumpWithHandleData |
+                                  MiniDumpWithThreadInfo |
+                                  MiniDumpWithIndirectlyReferencedMemory);
             break;
-        }        
+        }
         case CrashDumpFull:
         {
             mdt = (MINIDUMP_TYPE)(MiniDumpWithPrivateReadWriteMemory |
-                    MiniDumpWithDataSegs |
-                    MiniDumpWithHandleData |
-                    MiniDumpWithFullMemoryInfo |
-                    MiniDumpScanMemory |
-                    MiniDumpWithThreadInfo |
-                    MiniDumpWithUnloadedModules);
+                                  MiniDumpWithDataSegs |
+                                  MiniDumpWithHandleData |
+                                  MiniDumpWithFullMemoryInfo |
+                                  MiniDumpScanMemory |
+                                  MiniDumpWithThreadInfo |
+                                  MiniDumpWithUnloadedModules);
             break;
         }
+        }
+
+        CreateMiniDump(path.c_str(), pExPtrs, mdt, this);
     }
 
-    std::wstring pathToCrashFile = L"\\\\?\\" + m_dumpsDir + L"\\" + m_appName + L".dmp";
-    using convert_type = std::codecvt_utf8<wchar_t>;
-    std::wstring_convert<convert_type, wchar_t> converter;
-    std::string path = converter.to_bytes(pathToCrashFile);
-    CreateMiniDump(path.c_str(), pExPtrs, mdt, this);
-}
+    bool WindowsCrashHandler::isDataSectionNeeded(const WCHAR* pModuleName) {
+        if( pModuleName == 0 ) {
+            _ASSERTE( _T("Parameter is null.") );
+            return false;
+        }
 
-bool WindowsCrashHandler::isDataSectionNeeded(const WCHAR* pModuleName)
-{
-    if( pModuleName == 0 )
-    {
-        _ASSERTE( _T("Parameter is null.") );
+        // Extract the module name
+
+        WCHAR szFileName[_MAX_FNAME] = L"";
+        _wsplitpath( pModuleName, NULL, NULL, szFileName, NULL );
+
+        // Compare the name with the list of known names and decide
+        // if contains app name in its path
+        if( wcsstr( pModuleName, m_appName.c_str() ) != 0 ) {
+            return true;
+        } else if( _wcsicmp( szFileName, L"ntdll" ) == 0 ) {
+            return true;
+        } else if( wcsstr( szFileName, L"Qt5" ) != 0 ) {
+            return true;
+        }
+
+        // Complete
         return false;
     }
 
-    // Extract the module name
-
-    WCHAR szFileName[_MAX_FNAME] = L"";
-
-    _wsplitpath( pModuleName, NULL, NULL, szFileName, NULL );
-
-
-    // Compare the name with the list of known names and decide
-
-    // if contains app name in its path
-    if( wcsstr( pModuleName, m_appName.c_str() ) != 0 )
-    {
-        return true;
-    }
-    else if( _wcsicmp( szFileName, L"ntdll" ) == 0 )
-    {
-        return true;
-    }
-    else if( wcsstr( szFileName, L"Qt5" ) != 0 )
-    {
-        return true;
-    }
-
-    // Complete
-
-    return false;
-}
-
-void WindowsCrashHandler::setProcessExceptionHandlers()
-{
-    //SetErrorMode(SEM_NOGPFAULTERRORBOX | SEM_FAILCRITICALERRORS);
-    m_oldSehHandler = SetUnhandledExceptionFilter(SehHandler);
+    void WindowsCrashHandler::setProcessExceptionHandlers() {
+        //SetErrorMode(SEM_NOGPFAULTERRORBOX | SEM_FAILCRITICALERRORS);
+        m_oldSehHandler = SetUnhandledExceptionFilter(SehHandler);
 #if defined _M_X64 || defined _M_IX86
-    if (m_oldSehHandler)
-        PreventSetUnhandledExceptionFilter();
+        if (m_oldSehHandler)
+            PreventSetUnhandledExceptionFilter();
 #endif
 
 #if _MSC_VER>=1300
-    // Catch pure virtual function calls.
-    // Because there is one _purecall_handler for the whole process,
-    // calling this function immediately impacts all threads. The last
-    // caller on any thread sets the handler.
-    // http://msdn.microsoft.com/en-us/library/t296ys27.aspx
-    m_prevPurec = _set_purecall_handler(PureCallHandler);
+        // Catch pure virtual function calls.
+        // Because there is one _purecall_handler for the whole process,
+        // calling this function immediately impacts all threads. The last
+        // caller on any thread sets the handler.
+        // http://msdn.microsoft.com/en-us/library/t296ys27.aspx
+        m_prevPurec = _set_purecall_handler(PureCallHandler);
 
-    // Catch new operator memory allocation exceptions
-    //_set_new_mode(1); // Force malloc() to call new handler too
-    m_prevNewHandler = _set_new_handler(NewHandler);
+        // Catch new operator memory allocation exceptions
+        //_set_new_mode(1); // Force malloc() to call new handler too
+        m_prevNewHandler = _set_new_handler(NewHandler);
 #endif
-    
+
 #if _MSC_VER>=1400
-    // Catch invalid parameter exceptions.
-    m_prevInvpar = _set_invalid_parameter_handler(InvalidParameterHandler);
+        // Catch invalid parameter exceptions.
+        m_prevInvpar = _set_invalid_parameter_handler(InvalidParameterHandler);
 #endif
 
 #if _MSC_VER>=1300 && _MSC_VER<1400    
-    // Catch buffer overrun exceptions
-    // The _set_security_error_handler is deprecated in VC8 C++ run time library
-    m_prevSec = _set_security_error_handler(SecurityHandler);
+        // Catch buffer overrun exceptions
+        // The _set_security_error_handler is deprecated in VC8 C++ run time library
+        m_prevSec = _set_security_error_handler(SecurityHandler);
 #endif
 
 #if _MSC_VER>=1400
-    _set_abort_behavior(0, _WRITE_ABORT_MSG);
-    _set_abort_behavior(_CALL_REPORTFAULT, _CALL_REPORTFAULT);
+        _set_abort_behavior(0, _WRITE_ABORT_MSG);
+        _set_abort_behavior(_CALL_REPORTFAULT, _CALL_REPORTFAULT);
 #endif
 
 #if defined(_MSC_VER)
-    // Disable all of the possible ways Windows conspires to make automated
-    // testing impossible.
-    
-    // ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
-    // ::_set_error_mode(_OUT_TO_STDERR);
+        // Disable all of the possible ways Windows conspires to make automated
+        // testing impossible.
 
-    // _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
-    // _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
-    // _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
-    // _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
-    // _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
-    // _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+        // ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+        // ::_set_error_mode(_OUT_TO_STDERR);
 
-    m_crtReportHook = _CrtSetReportHook(CrtReportHook);
+        // _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+        // _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+        // _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+        // _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+        // _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+        // _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+
+        m_crtReportHook = _CrtSetReportHook(CrtReportHook);
 #endif
 
-    // Set up C++ signal handlers
-    
-    // Catch an abnormal program termination
-    m_prevSigABRT = signal(SIGABRT, SigabrtHandler);
+        // Set up C++ signal handlers
 
-    // Catch illegal instruction handler
-    m_prevSigINT = signal(SIGINT, SigintHandler);
+        // Catch an abnormal program termination
+        m_prevSigABRT = signal(SIGABRT, SigabrtHandler);
 
-    // Catch a termination request
-    m_prevSigINT = signal(SIGTERM, SigtermHandler);
-}
+        // Catch illegal instruction handler
+        m_prevSigINT = signal(SIGINT, SigintHandler);
 
-void WindowsCrashHandler::unsetProcessExceptionHandlers()
-{
+        // Catch a termination request
+        m_prevSigINT = signal(SIGTERM, SigtermHandler);
+    }
+
+    void WindowsCrashHandler::unsetProcessExceptionHandlers() {
 #if _MSC_VER>=1300
-    if(m_prevPurec!=NULL)
-        _set_purecall_handler(m_prevPurec);
+        if(m_prevPurec!=NULL) {
+            _set_purecall_handler(m_prevPurec);
+        }
 
-    if(m_prevNewHandler!=NULL)
-        _set_new_handler(m_prevNewHandler);
+        if(m_prevNewHandler!=NULL) {
+            _set_new_handler(m_prevNewHandler);
+        }
 #endif
 
 #if _MSC_VER>=1400
-    if(m_prevInvpar!=NULL)
-        _set_invalid_parameter_handler(m_prevInvpar);
+        if(m_prevInvpar!=NULL) {
+            _set_invalid_parameter_handler(m_prevInvpar);
+        }
 #endif //_MSC_VER>=1400  
 
 #if _MSC_VER>=1300 && _MSC_VER<1400    
-    if(m_prevSec!=NULL)
-        _set_security_error_handler(m_prevSec);
+        if(m_prevSec!=NULL)
+            _set_security_error_handler(m_prevSec);
 #endif //_MSC_VER<1400
 
-    if(m_prevSigABRT!=NULL)
-        signal(SIGABRT, m_prevSigABRT);
+        if(m_prevSigABRT!=NULL) {
+            signal(SIGABRT, m_prevSigABRT);
+        }
 
-    if(m_prevSigINT!=NULL)
-        signal(SIGINT, m_prevSigINT);
+        if(m_prevSigINT!=NULL) {
+            signal(SIGINT, m_prevSigINT);
+        }
 
-    if(m_prevSigTERM!=NULL)
-        signal(SIGTERM, m_prevSigTERM);
+        if(m_prevSigTERM!=NULL) {
+            signal(SIGTERM, m_prevSigTERM);
+        }
 
-    // Reset SEH exception filter
-    if (m_oldSehHandler)
-        SetUnhandledExceptionFilter(m_oldSehHandler);
+        // Reset SEH exception filter
+        if (m_oldSehHandler) {
+            SetUnhandledExceptionFilter(m_oldSehHandler);
+        }
 
-    m_oldSehHandler = NULL;
+        m_oldSehHandler = NULL;
 
-    if (m_crtReportHook)
-        _CrtSetReportHook(m_crtReportHook);
-}
-
-int WindowsCrashHandler::setThreadExceptionHandlers()
-{
-    DWORD dwThreadId = GetCurrentThreadId();
-
-    std::lock_guard<std::mutex> guard(m_threadHandlersMutex);
-
-    auto it = m_threadExceptionHandlers.find(dwThreadId);
-    if (it != m_threadExceptionHandlers.end())
-    {
-        // handlers are already set for the thread    
-        return 1; // failed
+        if (m_crtReportHook) {
+            _CrtSetReportHook(m_crtReportHook);
+        }
     }
 
-    ThreadExceptionHandlers handlers;
-
-    // Catch terminate() calls.
-    // In a multithreaded environment, terminate functions are maintained
-    // separately for each thread. Each new thread needs to install its own
-    // terminate function. Thus, each thread is in charge of its own termination handling.
-    // http://msdn.microsoft.com/en-us/library/t6fk7h29.aspx
-    handlers.m_prevTerm = set_terminate(TerminateHandler);
-
-    // Catch unexpected() calls.
-    // In a multithreaded environment, unexpected functions are maintained
-    // separately for each thread. Each new thread needs to install its own
-    // unexpected function. Thus, each thread is in charge of its own unexpected handling.
-    // http://msdn.microsoft.com/en-us/library/h46t5b69.aspx
-    handlers.m_prevUnexp = set_unexpected(UnexpectedHandler);
-
-    // Catch a floating point error
-    typedef void (*sigh)(int);
-    handlers.m_prevSigFPE = signal(SIGFPE, (sigh)SigfpeHandler);
-
-    // Catch an illegal instruction
-    handlers.m_prevSigILL = signal(SIGILL, SigillHandler);
-
-    // Catch illegal storage access errors
-    handlers.m_prevSigSEGV = signal(SIGSEGV, SigsegvHandler);
-
-    m_threadExceptionHandlers[dwThreadId] = handlers;
-
-    return 0;
-}
-
-int WindowsCrashHandler::unsetThreadExceptionHandlers()
-{
-    DWORD dwThreadId = GetCurrentThreadId();
-    std::lock_guard<std::mutex> guard(m_threadHandlersMutex);
-
-    auto it = m_threadExceptionHandlers.find(dwThreadId);
-    if (it == m_threadExceptionHandlers.end())
+    int WindowsCrashHandler::setThreadExceptionHandlers()
     {
-        return 1;
+        DWORD dwThreadId = GetCurrentThreadId();
+
+        std::lock_guard<std::mutex> guard(m_threadHandlersMutex);
+
+        auto it = m_threadExceptionHandlers.find(dwThreadId);
+        if (it != m_threadExceptionHandlers.end()) {
+            // handlers are already set for the thread
+            return 1; // failed
+        }
+
+        ThreadExceptionHandlers handlers;
+
+        // Catch terminate() calls.
+        // In a multithreaded environment, terminate functions are maintained
+        // separately for each thread. Each new thread needs to install its own
+        // terminate function. Thus, each thread is in charge of its own termination handling.
+        // http://msdn.microsoft.com/en-us/library/t6fk7h29.aspx
+        handlers.m_prevTerm = set_terminate(TerminateHandler);
+
+        // Catch unexpected() calls.
+        // In a multithreaded environment, unexpected functions are maintained
+        // separately for each thread. Each new thread needs to install its own
+        // unexpected function. Thus, each thread is in charge of its own unexpected handling.
+        // http://msdn.microsoft.com/en-us/library/h46t5b69.aspx
+        handlers.m_prevUnexp = set_unexpected(UnexpectedHandler);
+
+        // Catch a floating point error
+        typedef void (*sigh)(int);
+        handlers.m_prevSigFPE = signal(SIGFPE, (sigh)SigfpeHandler);
+
+        // Catch an illegal instruction
+        handlers.m_prevSigILL = signal(SIGILL, SigillHandler);
+
+        // Catch illegal storage access errors
+        handlers.m_prevSigSEGV = signal(SIGSEGV, SigsegvHandler);
+
+        m_threadExceptionHandlers[dwThreadId] = handlers;
+
+        return 0;
     }
 
-    ThreadExceptionHandlers* handlers = &(it->second);
+    int WindowsCrashHandler::unsetThreadExceptionHandlers() {
+        DWORD dwThreadId = GetCurrentThreadId();
+        std::lock_guard<std::mutex> guard(m_threadHandlersMutex);
+        (void)guard;
 
-    if(handlers->m_prevTerm!=NULL)
-        set_terminate(handlers->m_prevTerm);
+        auto it = m_threadExceptionHandlers.find(dwThreadId);
+        if (it == m_threadExceptionHandlers.end()) {
+            return 1;
+        }
 
-    if(handlers->m_prevUnexp!=NULL)
-        set_unexpected(handlers->m_prevUnexp);
+        ThreadExceptionHandlers* handlers = &(it->second);
 
-    if(handlers->m_prevSigFPE!=NULL)
-        signal(SIGFPE, handlers->m_prevSigFPE);
+        if(handlers->m_prevTerm!=NULL) {
+            set_terminate(handlers->m_prevTerm);
+        }
 
-    if(handlers->m_prevSigILL!=NULL)
-        signal(SIGINT, handlers->m_prevSigILL);
+        if(handlers->m_prevUnexp!=NULL) {
+            set_unexpected(handlers->m_prevUnexp);
+        }
 
-    if(handlers->m_prevSigSEGV!=NULL)
-        signal(SIGSEGV, handlers->m_prevSigSEGV);
+        if(handlers->m_prevSigFPE!=NULL) {
+            signal(SIGFPE, handlers->m_prevSigFPE);
+        }
 
-    // Remove from the list
-    m_threadExceptionHandlers.erase(it);
+        if(handlers->m_prevSigILL!=NULL) {
+            signal(SIGINT, handlers->m_prevSigILL);
+        }
 
-    return 0;
-}
+        if(handlers->m_prevSigSEGV!=NULL) {
+            signal(SIGSEGV, handlers->m_prevSigSEGV);
+        }
 
-int __cdecl WindowsCrashHandler::CrtReportHook(int nReportType, char* szMsg, int* pnRet) {
-    switch (nReportType)
-    {
+        // Remove from the list
+        m_threadExceptionHandlers.erase(it);
+
+        return 0;
+    }
+
+    int __cdecl WindowsCrashHandler::CrtReportHook(int nReportType, char* szMsg, int* pnRet) {
+        switch (nReportType) {
         case _CRT_WARN:
         case _CRT_ERROR:
         case _CRT_ASSERT:
             // Put some debug code here
             break;
-    }
-    
-    if (pnRet) {
-        *pnRet = 0;
-    }
-    
-    return TRUE;
-}
+        }
 
-// CRT terminate() call handler
-void __cdecl WindowsCrashHandler::TerminateHandler()
-{
-    // Abnormal program termination (terminate() function was called)
+        if (pnRet) {
+            *pnRet = 0;
+        }
 
-    // Retrieve exception information
-    EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
-    if (pExceptionPtrs == nullptr) {
-        GetExceptionPointers(CR_CPP_TERMINATE_CALL, &pExceptionPtrs);
+        return TRUE;
     }
 
-    DoHandleCrash(pExceptionPtrs);
-}
+    // CRT terminate() call handler
+    void __cdecl WindowsCrashHandler::TerminateHandler() {
+        // Abnormal program termination (terminate() function was called)
 
-// CRT unexpected() call handler
-void __cdecl WindowsCrashHandler::UnexpectedHandler()
-{
-    // Unexpected error (unexpected() function was called)
+        // Retrieve exception information
+        EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
+        if (pExceptionPtrs == nullptr) {
+            GetExceptionPointers(CR_CPP_TERMINATE_CALL, &pExceptionPtrs);
+        }
 
-    // Retrieve exception information
-    EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
-    if (pExceptionPtrs == nullptr) {
-        GetExceptionPointers(CR_CPP_UNEXPECTED_CALL, &pExceptionPtrs);
+        DoHandleCrash(pExceptionPtrs);
     }
 
-    DoHandleCrash(pExceptionPtrs);
-}
+    // CRT unexpected() call handler
+    void __cdecl WindowsCrashHandler::UnexpectedHandler() {
+        // Unexpected error (unexpected() function was called)
 
-// CRT Pure virtual method call handler
-void __cdecl WindowsCrashHandler::PureCallHandler()
-{
-    // Pure virtual function call
+        // Retrieve exception information
+        EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
+        if (pExceptionPtrs == nullptr) {
+            GetExceptionPointers(CR_CPP_UNEXPECTED_CALL, &pExceptionPtrs);
+        }
 
-    // Retrieve exception information
-    EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
-    if (pExceptionPtrs == nullptr) {
-        GetExceptionPointers(CR_CPP_PURE_CALL, &pExceptionPtrs);
+        DoHandleCrash(pExceptionPtrs);
     }
 
-    DoHandleCrash(pExceptionPtrs);
-}
+    // CRT Pure virtual method call handler
+    void __cdecl WindowsCrashHandler::PureCallHandler() {
+        // Pure virtual function call
 
-// CRT buffer overrun handler. Available in CRT 7.1 only
+        // Retrieve exception information
+        EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
+        if (pExceptionPtrs == nullptr) {
+            GetExceptionPointers(CR_CPP_PURE_CALL, &pExceptionPtrs);
+        }
+
+        DoHandleCrash(pExceptionPtrs);
+    }
+
+    // CRT buffer overrun handler. Available in CRT 7.1 only
 #if _MSC_VER>=1300 && _MSC_VER<1400
-void __cdecl WindowsCrashHandler::SecurityHandler(int code, void *x)
-{
-    // Security error (buffer overrun).
+    void __cdecl WindowsCrashHandler::SecurityHandler(int code, void *x)
+    {
+        // Security error (buffer overrun).
 
-    code;
-    x;
+        code;
+        x;
 
-    EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
-    if (pExceptionPtrs == nullptr) {
-        GetExceptionPointers(CR_CPP_SECURITY_ERROR, &pExceptionPtrs);
+        EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
+        if (pExceptionPtrs == nullptr) {
+            GetExceptionPointers(CR_CPP_SECURITY_ERROR, &pExceptionPtrs);
+        }
+
+        DoHandleCrash(pExceptionPtrs);
     }
-
-    DoHandleCrash(pExceptionPtrs);
-}
 #endif
 
 #if _MSC_VER>=1400
-// CRT invalid parameter handler
-void __cdecl WindowsCrashHandler::InvalidParameterHandler(
-    const wchar_t* expression,
-    const wchar_t* function,
-    const wchar_t* file,
-    unsigned int line,
-    uintptr_t pReserved)
-{
-    pReserved;
-    
-    // fwprintf(stderr, L"Invalid parameter detected in function %s."
-    //        L" File: %s Line: %d\n", function, file, line);
-    
-    // Retrieve exception information
-    EXCEPTION_POINTERS* pExceptionPtrs = NULL;
-    GetExceptionPointers(CR_CPP_INVALID_PARAMETER, &pExceptionPtrs);
+    // CRT invalid parameter handler
+    void __cdecl WindowsCrashHandler::InvalidParameterHandler(
+            const wchar_t* expression,
+            const wchar_t* function,
+            const wchar_t* file,
+            unsigned int line,
+            uintptr_t pReserved) {
+        pReserved;
 
-    DoHandleCrash(pExceptionPtrs);
-}
+        // fwprintf(stderr, L"Invalid parameter detected in function %s."
+        //        L" File: %s Line: %d\n", function, file, line);
+
+        // Retrieve exception information
+        EXCEPTION_POINTERS* pExceptionPtrs = NULL;
+        GetExceptionPointers(CR_CPP_INVALID_PARAMETER, &pExceptionPtrs);
+
+        DoHandleCrash(pExceptionPtrs);
+    }
 #endif
 
-// CRT new operator fault handler
-int __cdecl WindowsCrashHandler::NewHandler(size_t)
-{
-    // 'new' operator memory allocation exception
+    // CRT new operator fault handler
+    int __cdecl WindowsCrashHandler::NewHandler(size_t) {
+        // 'new' operator memory allocation exception
 
-    // Retrieve exception information
-    EXCEPTION_POINTERS* pExceptionPtrs = NULL;
-    GetExceptionPointers(CR_CPP_NEW_OPERATOR_ERROR, &pExceptionPtrs);
+        // Retrieve exception information
+        EXCEPTION_POINTERS* pExceptionPtrs = NULL;
+        GetExceptionPointers(CR_CPP_NEW_OPERATOR_ERROR, &pExceptionPtrs);
 
-    DoHandleCrash(pExceptionPtrs);
+        DoHandleCrash(pExceptionPtrs);
 
-    // Unreacheable code
-    return 0;
-}
-
-// CRT SIGABRT signal handler
-void WindowsCrashHandler::SigabrtHandler(int)
-{
-    // Caught SIGABRT C++ signal
-
-    // Retrieve exception information
-    EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
-    if (pExceptionPtrs == nullptr) {
-        GetExceptionPointers(CR_CPP_SIGABRT, &pExceptionPtrs);
+        // Unreacheable code
+        return 0;
     }
 
-    DoHandleCrash(pExceptionPtrs);
-}
+    // CRT SIGABRT signal handler
+    void WindowsCrashHandler::SigabrtHandler(int) {
+        // Caught SIGABRT C++ signal
 
-// CRT SIGFPE signal handler
-void WindowsCrashHandler::SigfpeHandler(int /*code*/, int subcode)
-{
-    // Floating point exception (SIGFPE)
+        // Retrieve exception information
+        EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
+        if (pExceptionPtrs == nullptr) {
+            GetExceptionPointers(CR_CPP_SIGABRT, &pExceptionPtrs);
+        }
 
-    EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
-
-    DoHandleCrash(pExceptionPtrs);
-}
-
-// CRT sigill signal handler
-void WindowsCrashHandler::SigillHandler(int)
-{
-    // Illegal instruction (SIGILL)
-
-    // Retrieve exception information
-    EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
-    if (pExceptionPtrs == nullptr) {
-        GetExceptionPointers(CR_CPP_SIGILL, &pExceptionPtrs);
+        DoHandleCrash(pExceptionPtrs);
     }
 
-    DoHandleCrash(pExceptionPtrs);
-}
+    // CRT SIGFPE signal handler
+    void WindowsCrashHandler::SigfpeHandler(int /*code*/, int subcode) {
+        // Floating point exception (SIGFPE)
 
-// CRT sigint signal handler
-void WindowsCrashHandler::SigintHandler(int)
-{
-    // Interruption (SIGINT)
+        EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
 
-    // Retrieve exception information
-    EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
-    if (pExceptionPtrs == nullptr) {
-        GetExceptionPointers(CR_CPP_SIGINT, &pExceptionPtrs);
+        DoHandleCrash(pExceptionPtrs);
     }
 
-    DoHandleCrash(pExceptionPtrs);
-}
+    // CRT sigill signal handler
+    void WindowsCrashHandler::SigillHandler(int) {
+        // Illegal instruction (SIGILL)
 
-// CRT SIGSEGV signal handler
-void WindowsCrashHandler::SigsegvHandler(int)
-{
-    // Invalid storage access (SIGSEGV)
+        // Retrieve exception information
+        EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
+        if (pExceptionPtrs == nullptr) {
+            GetExceptionPointers(CR_CPP_SIGILL, &pExceptionPtrs);
+        }
 
-    PEXCEPTION_POINTERS pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
-    if (pExceptionPtrs == nullptr) {
-        GetExceptionPointers(CR_CPP_SIGSEGV, &pExceptionPtrs);
+        DoHandleCrash(pExceptionPtrs);
     }
 
-    DoHandleCrash(pExceptionPtrs);
-}
+    // CRT sigint signal handler
+    void WindowsCrashHandler::SigintHandler(int) {
+        // Interruption (SIGINT)
 
-// CRT SIGTERM signal handler
-void WindowsCrashHandler::SigtermHandler(int)
-{
-    // Termination request (SIGTERM)
+        // Retrieve exception information
+        EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
+        if (pExceptionPtrs == nullptr) {
+            GetExceptionPointers(CR_CPP_SIGINT, &pExceptionPtrs);
+        }
 
-    // Retrieve exception information
-    EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
-    if (pExceptionPtrs == nullptr) {
-        GetExceptionPointers(CR_CPP_SIGTERM, &pExceptionPtrs);
+        DoHandleCrash(pExceptionPtrs);
     }
 
-    DoHandleCrash(pExceptionPtrs);
+    // CRT SIGSEGV signal handler
+    void WindowsCrashHandler::SigsegvHandler(int) {
+        // Invalid storage access (SIGSEGV)
+
+        PEXCEPTION_POINTERS pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
+        if (pExceptionPtrs == nullptr) {
+            GetExceptionPointers(CR_CPP_SIGSEGV, &pExceptionPtrs);
+        }
+
+        DoHandleCrash(pExceptionPtrs);
+    }
+
+    // CRT SIGTERM signal handler
+    void WindowsCrashHandler::SigtermHandler(int) {
+        // Termination request (SIGTERM)
+
+        // Retrieve exception information
+        EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
+        if (pExceptionPtrs == nullptr) {
+            GetExceptionPointers(CR_CPP_SIGTERM, &pExceptionPtrs);
+        }
+
+        DoHandleCrash(pExceptionPtrs);
+    }
 }

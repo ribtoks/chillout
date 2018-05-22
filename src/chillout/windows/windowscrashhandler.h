@@ -21,129 +21,131 @@
 #include <string>
 #include <map>
 
-struct ThreadExceptionHandlers
-{
-    ThreadExceptionHandlers()
+namespace Debug {
+    struct ThreadExceptionHandlers
     {
-        m_prevTerm = NULL;
-        m_prevUnexp = NULL;
-        m_prevSigFPE = NULL;
-        m_prevSigILL = NULL;
-        m_prevSigSEGV = NULL;
-    }
+        ThreadExceptionHandlers()
+        {
+            m_prevTerm = NULL;
+            m_prevUnexp = NULL;
+            m_prevSigFPE = NULL;
+            m_prevSigILL = NULL;
+            m_prevSigSEGV = NULL;
+        }
 
-    terminate_handler m_prevTerm;        // Previous terminate handler
-    unexpected_handler m_prevUnexp;      // Previous unexpected handler
-    void (__cdecl *m_prevSigFPE)(int);   // Previous FPE handler
-    void (__cdecl *m_prevSigILL)(int);   // Previous SIGILL handler
-    void (__cdecl *m_prevSigSEGV)(int);  // Previous illegal storage access handler
-};
-
-// code mostly from https://www.codeproject.com/articles/207464/WebControls/
-class WindowsCrashHandler
-{
-public:
-    enum CrashDumpSize {
-        CrashDumpSmall,
-        CrashDumpNormal,
-        CrashDumpFull
+        terminate_handler m_prevTerm;        // Previous terminate handler
+        unexpected_handler m_prevUnexp;      // Previous unexpected handler
+        void (__cdecl *m_prevSigFPE)(int);   // Previous FPE handler
+        void (__cdecl *m_prevSigILL)(int);   // Previous SIGILL handler
+        void (__cdecl *m_prevSigSEGV)(int);  // Previous illegal storage access handler
     };
-    
-public:
-    static WindowsCrashHandler& getInstance()
+
+    // code mostly from https://www.codeproject.com/articles/207464/WebControls/
+    class WindowsCrashHandler
     {
-        static WindowsCrashHandler instance; // Guaranteed to be destroyed.
-        // Instantiated on first use.
-        return instance;
-    }
-    
-private:
-    WindowsCrashHandler();
+    public:
+        enum CrashDumpSize {
+            CrashDumpSmall,
+            CrashDumpNormal,
+            CrashDumpFull
+        };
 
-public:
-    void setup(const std::wstring &appName, const std::wstring &dumpsDir);
-    void teardown();
-    void setCrashDumpSize(CrashDumpSize size);
-    void setCrashCallback(const std::function<void()> &crashCallback);
-    void setBacktraceCallback(const std::function<void(const char * const)> &backtraceCallback);
-    void handleCrash(EXCEPTION_POINTERS* pExPtrs);
+    public:
+        static WindowsCrashHandler& getInstance()
+        {
+            static WindowsCrashHandler instance; // Guaranteed to be destroyed.
+            // Instantiated on first use.
+            return instance;
+        }
 
-private:
-    void backtrace(EXCEPTION_POINTERS* pExPtrs);
-    void createDump(EXCEPTION_POINTERS* pExPtrs);
+    private:
+        WindowsCrashHandler();
 
-public:
-    bool isDataSectionNeeded(const WCHAR* pModuleName);
+    public:
+        void setup(const std::wstring &appName, const std::wstring &dumpsDir);
+        void teardown();
+        void setCrashDumpSize(CrashDumpSize size);
+        void setCrashCallback(const std::function<void()> &callback);
+        void setBacktraceCallback(const std::function<void(const char * const)> &callback);
+        void handleCrash(EXCEPTION_POINTERS* pExPtrs);
 
-public:
-    // Sets exception handlers that work on per-process basis
-    void setProcessExceptionHandlers();
-    void unsetProcessExceptionHandlers();
+    private:
+        void backtrace(EXCEPTION_POINTERS* pExPtrs);
+        void createDump(EXCEPTION_POINTERS* pExPtrs, const std::string &path);
 
-    // Installs C++ exception handlers that function on per-thread basis
-    int setThreadExceptionHandlers();
-    int unsetThreadExceptionHandlers();
+    public:
+        bool isDataSectionNeeded(const WCHAR* pModuleName);
 
-    /* Exception handler functions. */
+    public:
+        // Sets exception handlers that work on per-process basis
+        void setProcessExceptionHandlers();
+        void unsetProcessExceptionHandlers();
 
-    static int __cdecl CrtReportHook(int nReportType, char* szMsg, int* pnRet);
-    
-    static void __cdecl TerminateHandler();
-    static void __cdecl UnexpectedHandler();
+        // Installs C++ exception handlers that function on per-thread basis
+        int setThreadExceptionHandlers();
+        int unsetThreadExceptionHandlers();
 
-    static void __cdecl PureCallHandler();
+        /* Exception handler functions. */
+
+        static int __cdecl CrtReportHook(int nReportType, char* szMsg, int* pnRet);
+
+        static void __cdecl TerminateHandler();
+        static void __cdecl UnexpectedHandler();
+
+        static void __cdecl PureCallHandler();
 #if _MSC_VER>=1300 && _MSC_VER<1400
-	// Buffer overrun handler (deprecated in newest versions of Visual C++).
-    // Since CRT 8.0, you can't intercept the buffer overrun errors in your code. When a buffer overrun is detected, CRT invokes Dr. Watson directly
-    static void __cdecl SecurityHandler(int code, void *x);
+        // Buffer overrun handler (deprecated in newest versions of Visual C++).
+        // Since CRT 8.0, you can't intercept the buffer overrun errors in your code. When a buffer overrun is detected, CRT invokes Dr. Watson directly
+        static void __cdecl SecurityHandler(int code, void *x);
 #endif
 
 #if _MSC_VER>=1400
-    static void __cdecl InvalidParameterHandler(const wchar_t* expression,
-        const wchar_t* function, const wchar_t* file, unsigned int line, uintptr_t pReserved);
+        static void __cdecl InvalidParameterHandler(const wchar_t* expression,
+                                                    const wchar_t* function, const wchar_t* file, unsigned int line, uintptr_t pReserved);
 #endif
 
-    static int __cdecl NewHandler(size_t);
+        static int __cdecl NewHandler(size_t);
 
-    static void SigabrtHandler(int);
-    static void SigfpeHandler(int /*code*/, int subcode);
-    static void SigintHandler(int);
-    static void SigillHandler(int);
-    static void SigsegvHandler(int);
-    static void SigtermHandler(int);
+        static void SigabrtHandler(int);
+        static void SigfpeHandler(int /*code*/, int subcode);
+        static void SigintHandler(int);
+        static void SigillHandler(int);
+        static void SigsegvHandler(int);
+        static void SigtermHandler(int);
 
-private:
-    std::function<void()> m_crashCallback;
-    std::function<void(const char * const)> m_backtraceCallback;
-    std::mutex m_crashMutex;
-    CrashDumpSize m_crashDumpSize;
-    std::wstring m_appName;
-    std::wstring m_dumpsDir;
-    
-    std::map<DWORD, ThreadExceptionHandlers> m_threadExceptionHandlers;
-    std::mutex m_threadHandlersMutex;
+    private:
+        std::function<void()> m_crashCallback;
+        std::function<void(const char * const)> m_backtraceCallback;
+        std::mutex m_crashMutex;
+        CrashDumpSize m_crashDumpSize;
+        std::string m_pathToCrashDump;
+        std::wstring m_appName;
 
-    _CRT_REPORT_HOOK m_crtReportHook;
-    
-    // Previous SEH exception filter.
-    LPTOP_LEVEL_EXCEPTION_FILTER  m_oldSehHandler;
+        std::map<DWORD, ThreadExceptionHandlers> m_threadExceptionHandlers;
+        std::mutex m_threadHandlersMutex;
+
+        _CRT_REPORT_HOOK m_crtReportHook;
+
+        // Previous SEH exception filter.
+        LPTOP_LEVEL_EXCEPTION_FILTER  m_oldSehHandler;
 
 #if _MSC_VER>=1300
-    _purecall_handler m_prevPurec;   // Previous pure virtual call exception filter.
-    _PNH m_prevNewHandler; // Previous new operator exception filter.
+        _purecall_handler m_prevPurec;   // Previous pure virtual call exception filter.
+        _PNH m_prevNewHandler; // Previous new operator exception filter.
 #endif
 
 #if _MSC_VER>=1400
-    _invalid_parameter_handler m_prevInvpar; // Previous invalid parameter exception filter.
+        _invalid_parameter_handler m_prevInvpar; // Previous invalid parameter exception filter.
 #endif
 
 #if _MSC_VER>=1300 && _MSC_VER<1400
-    _secerr_handler_func m_prevSec; // Previous security exception filter.
+        _secerr_handler_func m_prevSec; // Previous security exception filter.
 #endif
 
-    void (__cdecl *m_prevSigABRT)(int); // Previous SIGABRT handler.
-    void (__cdecl *m_prevSigINT)(int);  // Previous SIGINT handler.
-    void (__cdecl *m_prevSigTERM)(int); // Previous SIGTERM handler.
-};
+        void (__cdecl *m_prevSigABRT)(int); // Previous SIGABRT handler.
+        void (__cdecl *m_prevSigINT)(int);  // Previous SIGINT handler.
+        void (__cdecl *m_prevSigTERM)(int); // Previous SIGTERM handler.
+    };
+}
 
 #endif // CRASHHANDLER_H

@@ -7,6 +7,10 @@
 #define CHILLOUT_DATETIME "%Y%m%d_%H%M%S"
 
 tm now();
+#ifdef _WIN32
+std::wostream& formatDateTime(std::wostream& out, const tm& t, const wchar_t *fmt);
+#else
 std::ostream& formatDateTime(std::ostream& out, const tm& t, const char* fmt);
+#endif
 
 #endif // COMMON_H
