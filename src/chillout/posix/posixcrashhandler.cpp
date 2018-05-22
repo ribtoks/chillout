@@ -112,7 +112,7 @@ namespace Debug {
         memset(&m_memory[0], 0, sizeof(m_memory));
     }
 
-    void PosixCrashHandler::setup(const std::__1::string &appName, const std::string &crashDirPath) {
+    void PosixCrashHandler::setup(const std::string &appName, const std::string &crashDirPath) {
         struct sigaction sa;
         sa.sa_sigaction = posixSignalHandler;
         sigemptyset( &sa.sa_mask );
