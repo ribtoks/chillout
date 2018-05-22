@@ -32,4 +32,4 @@ test_script:
   - if not exist "%crash_dump%" EXIT /B 1
 
 on_success:
-  - powershell Push-AppveyorArtifact "%crash_dump%" -FileName chillout_test.dmp
+  - ps: Get-ChildItem c:\projects\chillout\src\tests\*.dmp | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
