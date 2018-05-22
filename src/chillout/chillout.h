@@ -15,7 +15,14 @@ public:
     }
 
 public:
-    void init(const std::wstring &appName, const std::wstring &pathToDumpsDir);
+#ifdef _WIN32
+    typedef std::wstring string_t;
+#else
+    typedef std::string string_t;
+#endif
+
+public:
+    void init(const string_t &appName, const string_t &pathToDumpsDir);
     void deinit();
     void setBacktraceCallback(const std::function<void(const char * const)> &callback);
     void setCrashCallback(const std::function<void()> &callback);

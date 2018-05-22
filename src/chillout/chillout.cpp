@@ -6,7 +6,7 @@
 #include "posix/posixcrashhandler.h"
 #endif
 
-void Chillout::init(const std::wstring &appName, const std::wstring &pathToDumpsDir) {
+void Chillout::init(const string_t &appName, const string_t &pathToDumpsDir) {
     if (0 == m_InitCounter.fetch_add(1)) {
 #ifdef _WIN32
         WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();

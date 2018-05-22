@@ -11,8 +11,12 @@
 #define STRINGIZE_(x) #x
 #define STRINGIZE(x) STRINGIZE_(x)
 
+#ifdef _WIN32
 #define WIDEN(quote) WIDEN2(quote)
 #define WIDEN2(quote) L##quote
+#else
+#define WIDEN(quote) quote
+#endif
 
 void chilltrace(const char * const stackEntry) {
     if (stackEntry) {
@@ -25,7 +29,7 @@ class RecoveryTest : public ::testing::Test
 protected:
     virtual void SetUp() {
         auto &chillout = Chillout::getInstance();
-        chillout.init(L"chillout_test", WIDEN(STRINGIZE(CRASHDUMPSDIR)));
+        chillout.init(WIDEN("chillout_test"), WIDEN(STRINGIZE(CRASHDUMPSDIR)));
         chillout.setBacktraceCallback(chilltrace);
         chillout.setCrashCallback([](){
                 fprintf(stderr, "Crash callback");
