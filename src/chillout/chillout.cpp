@@ -11,41 +11,37 @@ namespace Debug {
         if (0 == m_InitCounter.fetch_add(1)) {
 #ifdef _WIN32
             WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-            handler.setup(appName, pathToDumpsDir);
 #else
             PosixCrashHandler &handler = PosixCrashHandler::getInstance();
-            handler.setup(appName, pathToDumpsDir);
 #endif
+            handler.setup(appName, pathToDumpsDir);
         }
     }
 
     void Chillout::deinit() {
 #ifdef _WIN32
         WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-        handler.teardown();
 #else
         PosixCrashHandler &handler = PosixCrashHandler::getInstance();
-        handler.teardown();
 #endif
+        handler.teardown();
     }
 
     void Chillout::setBacktraceCallback(const std::function<void(const char * const)> &callback) {
 #ifdef _WIN32
         WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-        handler.setBacktraceCallback(callback);
 #else
         PosixCrashHandler &handler = PosixCrashHandler::getInstance();
-        handler.setBacktraceCallback(callback);
 #endif
+        handler.setBacktraceCallback(callback);
     }
 
     void Chillout::setCrashCallback(const std::function<void()> &callback) {
 #ifdef _WIN32
         WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-        handler.setCrashCallback(callback);
 #else
         PosixCrashHandler &handler = PosixCrashHandler::getInstance();
-        handler.setCrashCallback(callback);
 #endif
+        handler.setCrashCallback(callback);
     }
 }
