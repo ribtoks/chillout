@@ -69,8 +69,8 @@ namespace Debug {
 
         if (!btFilepath.empty()) {
             if (FILE *fp = fopen(btFilepath.c_str(), "a")) {
-                int fd = fileno(fp);
                 fseek(fp, 0, SEEK_END);
+                int fd = fileno(fp);
                 backtrace_symbols_fd(callstack, frames, fd);
                 fclose(fp);
             }
@@ -141,7 +141,7 @@ namespace Debug {
             }
 
             std::stringstream s;
-            s << path << "/" << appName;
+            s << path << "/" << appName << "_";
             formatDateTime(s, now(), CHILLOUT_DATETIME);
             s << ".bktr";
             m_backtraceFilePath = s.str();

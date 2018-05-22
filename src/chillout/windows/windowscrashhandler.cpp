@@ -400,7 +400,7 @@ namespace Debug {
             }
 
             std::wstringstream s;
-            s << L"\\\\?\\" << path << L'\\' << appName;
+            s << L"\\\\?\\" << path << L'\\' << appName << L'_';
             formatDateTime(s, now(), WIDEN(CHILLOUT_DATETIME));
             s << ".dmp";
             std::wstring pathToCrashFile = s.str();

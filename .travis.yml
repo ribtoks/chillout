@@ -34,5 +34,4 @@ script:
   - make test ARGS=-V
 
 after_success:
-  - cd ..
-  - for f in $(find ./src/tests -maxdepth 1 -name '.bktr' -print); do cat $f; done;
+  - for f in $(find ../src/tests -maxdepth 1 -name '*.bktr' -print); do cat "$f"; done;
