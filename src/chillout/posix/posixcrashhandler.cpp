@@ -9,12 +9,11 @@
 #include <signal.h>
 #include <cstring>
 #include <cstdint>
-#include <ctime>
 #include <sstream>
-
 #include <memory>
 
 #include "../defines.h"
+#include "../common/common.h"
 
 namespace Debug {
     struct FreeDeleter {
@@ -109,18 +108,6 @@ namespace Debug {
         exit(CHILLOUT_EXIT_CODE);
     }
 
-    tm now() {
-        time_t now = time(0);
-        return *localtime(&now);
-    }
-
-    std::ostream& formatDateTime(std::ostream& out, const tm& t, const char* fmt) {
-        const std::time_put<char>& dateWriter = std::use_facet<std::time_put<char> >(out.getloc());
-        const int n = strlen(fmt);
-        dateWriter.put(out, out, ' ', &t, fmt, fmt + n).failed();
-        return out;
-    }
-
     PosixCrashHandler::PosixCrashHandler() {
         memset(&m_memory[0], 0, sizeof(m_memory));
     }
@@ -155,7 +142,7 @@ namespace Debug {
 
             std::stringstream s;
             s << path << "/" << appName;
-            formatDateTime(s, now(), "%Y%m%d_%H%M%S");
+            formatDateTime(s, now(), CHILLOUT_DATETIME);
             s << ".bktr";
             m_backtraceFilePath = s.str();
         }
