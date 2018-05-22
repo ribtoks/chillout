@@ -28,7 +28,7 @@ class RecoveryTest : public ::testing::Test
 {
 protected:
     virtual void SetUp() {
-        auto &chillout = Chillout::getInstance();
+        auto &chillout = Debug::Chillout::getInstance();
         chillout.init(WIDEN("chillout_test"), WIDEN(STRINGIZE(CRASHDUMPSDIR)));
         chillout.setBacktraceCallback(chilltrace);
         chillout.setCrashCallback([](){
@@ -37,7 +37,7 @@ protected:
     }
 
     virtual void TearDown() {
-        auto &chillout = Chillout::getInstance();
+        auto &chillout = Debug::Chillout::getInstance();
         chillout.deinit();
     }
 };

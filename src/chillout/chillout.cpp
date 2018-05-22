@@ -6,47 +6,46 @@
 #include "posix/posixcrashhandler.h"
 #endif
 
-void Chillout::init(const string_t &appName, const string_t &pathToDumpsDir) {
-    if (0 == m_InitCounter.fetch_add(1)) {
+namespace Debug {
+    void Chillout::init(const string_t &appName, const string_t &pathToDumpsDir) {
+        if (0 == m_InitCounter.fetch_add(1)) {
+#ifdef _WIN32
+            WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
+            handler.setup(appName, pathToDumpsDir);
+#else
+            PosixCrashHandler &handler = PosixCrashHandler::getInstance();
+            handler.setup(appName, pathToDumpsDir);
+#endif
+        }
+    }
+
+    void Chillout::deinit() {
 #ifdef _WIN32
         WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-        handler.setup(appName, pathToDumpsDir);
+        handler.teardown();
 #else
-        (void)appName;
-        (void)pathToDumpsDir;
-        
         PosixCrashHandler &handler = PosixCrashHandler::getInstance();
-        handler.setup();
+        handler.teardown();
 #endif
     }
-}
 
-void Chillout::deinit() {
+    void Chillout::setBacktraceCallback(const std::function<void(const char * const)> &callback) {
 #ifdef _WIN32
-    WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-    handler.teardown();
+        WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
+        handler.setBacktraceCallback(callback);
 #else
-    PosixCrashHandler &handler = PosixCrashHandler::getInstance();
-    handler.teardown();
+        PosixCrashHandler &handler = PosixCrashHandler::getInstance();
+        handler.setBacktraceCallback(callback);
 #endif
-}
+    }
 
-void Chillout::setBacktraceCallback(const std::function<void(const char * const)> &callback) {
+    void Chillout::setCrashCallback(const std::function<void()> &callback) {
 #ifdef _WIN32
-    WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-    handler.setBacktraceCallback(callback);
+        WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
+        handler.setCrashCallback(callback);
 #else
-    PosixCrashHandler &handler = PosixCrashHandler::getInstance();
-    handler.setBacktraceCallback(callback);
+        PosixCrashHandler &handler = PosixCrashHandler::getInstance();
+        handler.setCrashCallback(callback);
 #endif
-}
-
-void Chillout::setCrashCallback(const std::function<void()> &callback) {
-#ifdef _WIN32
-    WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-    handler.setCrashCallback(callback);
-#else
-    PosixCrashHandler &handler = PosixCrashHandler::getInstance();
-    handler.setCrashCallback(callback);
-#endif
+    }
 }
