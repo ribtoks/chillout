@@ -20,7 +20,7 @@ The API is very simple - you provide your callbacks for crash and/or backtracing
 
 ### Basic usage
 
-    auto &chillout = Chillout::getInstance();
+    auto &chillout = Debug::Chillout::getInstance();
     // install various crash handlers
     chillout.init(L"My App Name");
     
