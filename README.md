@@ -22,7 +22,7 @@ The API is very simple - you provide your callbacks for crash and/or backtracing
 
     auto &chillout = Debug::Chillout::getInstance();
     // install various crash handlers
-    chillout.init(L"My App Name");
+    chillout.init("my_app_name", "/path/to/crash/or/backtraces/dir");
     
     chillout.setBacktraceCallback([](const char * const stackEntry) {
         fprintf(stderr, "my trace:  %s", stackEntry);
