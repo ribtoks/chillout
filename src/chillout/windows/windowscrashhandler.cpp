@@ -524,7 +524,7 @@ bool WindowsCrashHandler::isDataSectionNeeded(const WCHAR* pModuleName)
     {
         return true;
     }
-    else if( wcsicmp( szFileName, L"ntdll" ) == 0 )
+    else if( _wcsicmp( szFileName, L"ntdll" ) == 0 )
     {
         return true;
     }
