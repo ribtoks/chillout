@@ -12,9 +12,11 @@
 ![language](https://img.shields.io/badge/language-c++-blue.svg)
 ![c++](https://img.shields.io/badge/std-c++11-blue.svg) 
 
-Chillout is a **work-in-progress** simple cross-platform crash handling library.
+Chillout is a simple cross-platform crash handling library.
 
-The idea is to enable developers of native desktop applications to gracefully handle crashes. This library can be used to catch various unhandled exceptions (access violation, signals, alloc errors etc.), generate backtrace for logs and possibly crash dump (the latter currently only for Windows).
+This library can be used on Windows, OS X and Linux to catch various unhandled exceptions (access violation, signals, alloc errors etc.), generate backtraces for logs and possibly crash dump (the latter currently only for Windows).
+
+The API is very simple - you provide your callbacks for crash and/or backtracing. Chillout makes sure your handlers will be executed in the event of a crash.
 
 ### Basic usage
 
@@ -32,4 +34,17 @@ The idea is to enable developers of native desktop applications to gracefully ha
 
 ### Disclaimer
 
-Yes, ~Breakpad~ Crashpad exists, but sometimes it is too big or too complicated to setup (e.g. for Qt project). This library is definitely less reliable and featured than age-tested Breakpad/Crashpad, but it is simple, small and covered by tests.
+Yes, ~Breakpad~ Crashpad exists, but sometimes it is too big or too complicated to setup (e.g. for small project). This library is definitely less reliable and featured than age-tested Breakpad/Crashpad, but it is simple, small and covered by tests.
+
+### Limitations
+
+* Linux/Mac - no core dumps and any other type of crash dumps
+* stacktrace only of the thread which crashed
+
+### References
+
+This project won't be possible without:
+
+* [CrashRpt](http://crashrpt.sourceforge.net/) - most full collection of information about Windows crash handlers
+* [DeathHandler](https://github.com/vmarkovtsev/DeathHandler) - ideas to preallocate buffer in case of broken heap on 'nix systems
+* [gist by @fmela](https://gist.github.com/fmela/591333) - idea to use `dladdr()` instead of parsing raw/mangled line myself
