@@ -10,7 +10,7 @@ void Chillout::init(const std::wstring &appName, const std::wstring &pathToDumps
     if (0 == m_InitCounter.fetch_add(1)) {
 #ifdef _WIN32
         WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-        handler.Setup(appName, pathToDumpsDir);
+        handler.setup(appName, pathToDumpsDir);
 #else
         (void)appName;
         (void)pathToDumpsDir;
@@ -24,7 +24,7 @@ void Chillout::init(const std::wstring &appName, const std::wstring &pathToDumps
 void Chillout::deinit() {
 #ifdef _WIN32
     WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-    handler.Teardown();
+    handler.teardown();
 #else
     PosixCrashHandler &handler = PosixCrashHandler::getInstance();
     handler.teardown();
@@ -34,7 +34,7 @@ void Chillout::deinit() {
 void Chillout::setBacktraceCallback(const std::function<void(const char * const)> &callback) {
 #ifdef _WIN32
     WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-    handler.SetBacktraceCallback(callback);
+    handler.setBacktraceCallback(callback);
 #else
     PosixCrashHandler &handler = PosixCrashHandler::getInstance();
     handler.setBacktraceCallback(callback);
@@ -44,7 +44,7 @@ void Chillout::setBacktraceCallback(const std::function<void(const char * const)
 void Chillout::setCrashCallback(const std::function<void()> &callback) {
 #ifdef _WIN32
     WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-    handler.SetCrashCallback(callback);
+    handler.setCrashCallback(callback);
 #else
     PosixCrashHandler &handler = PosixCrashHandler::getInstance();
     handler.setCrashCallback(callback);

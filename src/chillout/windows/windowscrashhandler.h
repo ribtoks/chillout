@@ -32,7 +32,7 @@ struct ThreadExceptionHandlers
         m_prevSigSEGV = NULL;
     }
 
-    terminate_handler m_prevTerm;        // Previous terminate handler   
+    terminate_handler m_prevTerm;        // Previous terminate handler
     unexpected_handler m_prevUnexp;      // Previous unexpected handler
     void (__cdecl *m_prevSigFPE)(int);   // Previous FPE handler
     void (__cdecl *m_prevSigILL)(int);   // Previous SIGILL handler
@@ -61,28 +61,28 @@ private:
     WindowsCrashHandler();
 
 public:
-    void Setup(const std::wstring &appName, const std::wstring &dumpsDir);
-    void Teardown();
-    void SetCrashDumpSize(CrashDumpSize size);
-    void SetCrashCallback(const std::function<void()> &crashCallback);
-    void SetBacktraceCallback(const std::function<void(const char * const)> &backtraceCallback);
-    void HandleCrash(EXCEPTION_POINTERS* pExPtrs);
+    void setup(const std::wstring &appName, const std::wstring &dumpsDir);
+    void teardown();
+    void setCrashDumpSize(CrashDumpSize size);
+    void setCrashCallback(const std::function<void()> &crashCallback);
+    void setBacktraceCallback(const std::function<void(const char * const)> &backtraceCallback);
+    void handleCrash(EXCEPTION_POINTERS* pExPtrs);
 
 private:
-    void Backtrace(EXCEPTION_POINTERS* pExPtrs);
-    void CreateDump(EXCEPTION_POINTERS* pExPtrs);
+    void backtrace(EXCEPTION_POINTERS* pExPtrs);
+    void createDump(EXCEPTION_POINTERS* pExPtrs);
 
 public:
-    bool IsDataSectionNeeded(const WCHAR* pModuleName);
+    bool isDataSectionNeeded(const WCHAR* pModuleName);
 
 public:
     // Sets exception handlers that work on per-process basis
-    void SetProcessExceptionHandlers();
-    void UnsetProcessExceptionHandlers();
+    void setProcessExceptionHandlers();
+    void unsetProcessExceptionHandlers();
 
     // Installs C++ exception handlers that function on per-thread basis
-    int SetThreadExceptionHandlers();
-    int UnsetThreadExceptionHandlers();
+    int setThreadExceptionHandlers();
+    int unsetThreadExceptionHandlers();
 
     /* Exception handler functions. */
 
@@ -113,20 +113,20 @@ public:
     static void SigtermHandler(int);
 
 private:
-    std::function<void()> m_CrashCallback;
-    std::function<void(const char * const)> m_BacktraceCallback;
-    std::mutex m_CrashMutex;
-    CrashDumpSize m_CrashDumpSize;
-    std::wstring m_AppName;
-    std::wstring m_DumpsDir;
+    std::function<void()> m_crashCallback;
+    std::function<void(const char * const)> m_backtraceCallback;
+    std::mutex m_crashMutex;
+    CrashDumpSize m_crashDumpSize;
+    std::wstring m_appName;
+    std::wstring m_dumpsDir;
     
-    std::map<DWORD, ThreadExceptionHandlers> m_ThreadExceptionHandlers;
-    std::mutex m_ThreadHandlersMutex;
+    std::map<DWORD, ThreadExceptionHandlers> m_threadExceptionHandlers;
+    std::mutex m_threadHandlersMutex;
 
     _CRT_REPORT_HOOK m_crtReportHook;
     
     // Previous SEH exception filter.
-    LPTOP_LEVEL_EXCEPTION_FILTER  m_oldSehHandler;  
+    LPTOP_LEVEL_EXCEPTION_FILTER  m_oldSehHandler;
 
 #if _MSC_VER>=1300
     _purecall_handler m_prevPurec;   // Previous pure virtual call exception filter.
@@ -141,7 +141,7 @@ private:
     _secerr_handler_func m_prevSec; // Previous security exception filter.
 #endif
 
-    void (__cdecl *m_prevSigABRT)(int); // Previous SIGABRT handler.  
+    void (__cdecl *m_prevSigABRT)(int); // Previous SIGABRT handler.
     void (__cdecl *m_prevSigINT)(int);  // Previous SIGINT handler.
     void (__cdecl *m_prevSigTERM)(int); // Previous SIGTERM handler.
 };

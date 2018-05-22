@@ -141,7 +141,7 @@ BOOL CALLBACK MyMiniDumpCallback(
             {
                 // Yes, they are, but do we need them?
 
-                if( !handler->IsDataSectionNeeded( pInput->Module.FullPath ) )
+                if( !handler->isDataSectionNeeded( pInput->Module.FullPath ) )
                 {
                     pOutput->ModuleWriteFlags &= (~ModuleWriteDataSeg);
                 }
@@ -302,7 +302,7 @@ void GetExceptionPointers(DWORD dwExceptionCode,
 void DoHandleCrash(EXCEPTION_POINTERS* pExPtrs)
 {
     WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
-    handler.HandleCrash(pExPtrs);    
+    handler.handleCrash(pExPtrs);    
 }
 
 // http://groups.google.com/group/crashrpt/browse_thread/thread/a1dbcc56acb58b27/fbd0151dd8e26daf?lnk=gst&q=stack+overflow#fbd0151dd8e26daf
@@ -394,81 +394,81 @@ WindowsCrashHandler::WindowsCrashHandler()
     m_prevInvpar = NULL;
 #endif  
 
-    m_prevSigABRT = NULL;  
-    m_prevSigINT = NULL;  
+    m_prevSigABRT = NULL;
+    m_prevSigINT = NULL;
     m_prevSigTERM = NULL;
 
-    m_CrashDumpSize = CrashDumpNormal;
+    m_crashDumpSize = CrashDumpNormal;
 
     m_crtReportHook = NULL;
 }
 
-void WindowsCrashHandler::Setup(const std::wstring &appName, const std::wstring &dumpsDir)
+void WindowsCrashHandler::setup(const std::wstring &appName, const std::wstring &dumpsDir)
 {
-    m_AppName = appName;
-    m_DumpsDir = dumpsDir;
+    m_appName = appName;
+    m_dumpsDir = dumpsDir;
 
-    if (!m_DumpsDir.empty() &&
-        m_DumpsDir[m_DumpsDir.size() - 1] == L'\\') {
-        m_DumpsDir.pop_back();
+    if (!m_dumpsDir.empty() &&
+        m_dumpsDir[m_dumpsDir.size() - 1] == L'\\') {
+        m_dumpsDir.pop_back();
     }
     
     EnableCrashingOnCrashes();
-    SetProcessExceptionHandlers();
-    SetThreadExceptionHandlers();
+    setProcessExceptionHandlers();
+    setThreadExceptionHandlers();
 }
 
-void WindowsCrashHandler::Teardown()
+void WindowsCrashHandler::teardown()
 {
-    UnsetProcessExceptionHandlers();
-    UnsetThreadExceptionHandlers();
+    unsetProcessExceptionHandlers();
+    unsetThreadExceptionHandlers();
 }
 
-void WindowsCrashHandler::SetCrashDumpSize(CrashDumpSize size)
+void WindowsCrashHandler::setCrashDumpSize(CrashDumpSize size)
 {
-    m_CrashDumpSize = size;
+    m_crashDumpSize = size;
 }
 
-void WindowsCrashHandler::SetCrashCallback(const std::function<void()> &crashCallback)
+void WindowsCrashHandler::setCrashCallback(const std::function<void()> &crashCallback)
 {
-    m_CrashCallback = crashCallback;
+    m_crashCallback = crashCallback;
 }
 
-void WindowsCrashHandler::SetBacktraceCallback(const std::function<void(const char * const)> &backtraceCallback)
+void WindowsCrashHandler::setBacktraceCallback(const std::function<void(const char * const)> &backtraceCallback)
 {
-    m_BacktraceCallback = backtraceCallback;
+    m_backtraceCallback = backtraceCallback;
 }
 
-void WindowsCrashHandler::HandleCrash(EXCEPTION_POINTERS* pExPtrs)
+void WindowsCrashHandler::handleCrash(EXCEPTION_POINTERS* pExPtrs)
 {
-    std::lock_guard<std::mutex> guard(m_CrashMutex);
+    std::lock_guard<std::mutex> guard(m_crashMutex);
     
-    Backtrace(pExPtrs);
-    CreateDump(pExPtrs);
+    backtrace(pExPtrs);
+    createDump(pExPtrs);
     
-    if (m_CrashCallback)
+    if (m_crashCallback)
     {
-        m_CrashCallback();   
+        m_crashCallback();
     }
     
     // Terminate process
     TerminateProcess(GetCurrentProcess(), CHILLOUT_EXIT_CODE);
 }
 
-void WindowsCrashHandler::Backtrace(EXCEPTION_POINTERS* pExPtrs)
+void WindowsCrashHandler::backtrace(EXCEPTION_POINTERS* pExPtrs)
 {
-    if (m_BacktraceCallback)
+    if (m_backtraceCallback)
     {
-        StackWalkerWithCallback sw(m_BacktraceCallback);
+        StackWalkerWithCallback sw(m_backtraceCallback);
         sw.ShowCallstack(GetCurrentThread(), pExPtrs->ContextRecord);
     }
 }
 
-void WindowsCrashHandler::CreateDump(EXCEPTION_POINTERS* pExPtrs)
+void WindowsCrashHandler::createDump(EXCEPTION_POINTERS* pExPtrs)
 {
     MINIDUMP_TYPE mdt = (MINIDUMP_TYPE)(MiniDumpNormal);
 
-    switch (m_CrashDumpSize)
+    switch (m_crashDumpSize)
     {
         case CrashDumpSmall:
             mdt = (MINIDUMP_TYPE)(MiniDumpScanMemory |
@@ -495,14 +495,14 @@ void WindowsCrashHandler::CreateDump(EXCEPTION_POINTERS* pExPtrs)
         }
     }
 
-    std::wstring pathToCrashFile = L"\\\\?\\" + m_DumpsDir + L"\\" + m_AppName + L".dmp";
+    std::wstring pathToCrashFile = L"\\\\?\\" + m_dumpsDir + L"\\" + m_appName + L".dmp";
     using convert_type = std::codecvt_utf8<wchar_t>;
     std::wstring_convert<convert_type, wchar_t> converter;
     std::string path = converter.to_bytes(pathToCrashFile);
     CreateMiniDump(path.c_str(), pExPtrs, mdt, this);
 }
 
-bool WindowsCrashHandler::IsDataSectionNeeded(const WCHAR* pModuleName)
+bool WindowsCrashHandler::isDataSectionNeeded(const WCHAR* pModuleName)
 {
     if( pModuleName == 0 )
     {
@@ -520,7 +520,7 @@ bool WindowsCrashHandler::IsDataSectionNeeded(const WCHAR* pModuleName)
     // Compare the name with the list of known names and decide
 
     // if contains app name in its path
-    if( wcsstr( pModuleName, m_AppName.c_str() ) != 0 )
+    if( wcsstr( pModuleName, m_appName.c_str() ) != 0 )
     {
         return true;
     }
@@ -538,7 +538,7 @@ bool WindowsCrashHandler::IsDataSectionNeeded(const WCHAR* pModuleName)
     return false;
 }
 
-void WindowsCrashHandler::SetProcessExceptionHandlers()
+void WindowsCrashHandler::setProcessExceptionHandlers()
 {
     //SetErrorMode(SEM_NOGPFAULTERRORBOX | SEM_FAILCRITICALERRORS);
     m_oldSehHandler = SetUnhandledExceptionFilter(SehHandler);
@@ -605,7 +605,7 @@ void WindowsCrashHandler::SetProcessExceptionHandlers()
     m_prevSigINT = signal(SIGTERM, SigtermHandler);
 }
 
-void WindowsCrashHandler::UnsetProcessExceptionHandlers()
+void WindowsCrashHandler::unsetProcessExceptionHandlers()
 {
 #if _MSC_VER>=1300
     if(m_prevPurec!=NULL)
@@ -626,10 +626,10 @@ void WindowsCrashHandler::UnsetProcessExceptionHandlers()
 #endif //_MSC_VER<1400
 
     if(m_prevSigABRT!=NULL)
-        signal(SIGABRT, m_prevSigABRT);  
+        signal(SIGABRT, m_prevSigABRT);
 
     if(m_prevSigINT!=NULL)
-        signal(SIGINT, m_prevSigINT);     
+        signal(SIGINT, m_prevSigINT);
 
     if(m_prevSigTERM!=NULL)
         signal(SIGTERM, m_prevSigTERM);
@@ -644,14 +644,14 @@ void WindowsCrashHandler::UnsetProcessExceptionHandlers()
         _CrtSetReportHook(m_crtReportHook);
 }
 
-int WindowsCrashHandler::SetThreadExceptionHandlers()
+int WindowsCrashHandler::setThreadExceptionHandlers()
 {
     DWORD dwThreadId = GetCurrentThreadId();
 
-    std::lock_guard<std::mutex> guard(m_ThreadHandlersMutex);
+    std::lock_guard<std::mutex> guard(m_threadHandlersMutex);
 
-    auto it = m_ThreadExceptionHandlers.find(dwThreadId);
-    if (it != m_ThreadExceptionHandlers.end())
+    auto it = m_threadExceptionHandlers.find(dwThreadId);
+    if (it != m_threadExceptionHandlers.end())
     {
         // handlers are already set for the thread    
         return 1; // failed
@@ -683,18 +683,18 @@ int WindowsCrashHandler::SetThreadExceptionHandlers()
     // Catch illegal storage access errors
     handlers.m_prevSigSEGV = signal(SIGSEGV, SigsegvHandler);
 
-    m_ThreadExceptionHandlers[dwThreadId] = handlers;
+    m_threadExceptionHandlers[dwThreadId] = handlers;
 
     return 0;
 }
 
-int WindowsCrashHandler::UnsetThreadExceptionHandlers()
+int WindowsCrashHandler::unsetThreadExceptionHandlers()
 {
     DWORD dwThreadId = GetCurrentThreadId();
-    std::lock_guard<std::mutex> guard(m_ThreadHandlersMutex);
+    std::lock_guard<std::mutex> guard(m_threadHandlersMutex);
 
-    auto it = m_ThreadExceptionHandlers.find(dwThreadId);
-    if (it == m_ThreadExceptionHandlers.end())
+    auto it = m_threadExceptionHandlers.find(dwThreadId);
+    if (it == m_threadExceptionHandlers.end())
     {
         return 1;
     }
@@ -708,16 +708,16 @@ int WindowsCrashHandler::UnsetThreadExceptionHandlers()
         set_unexpected(handlers->m_prevUnexp);
 
     if(handlers->m_prevSigFPE!=NULL)
-        signal(SIGFPE, handlers->m_prevSigFPE);     
+        signal(SIGFPE, handlers->m_prevSigFPE);
 
     if(handlers->m_prevSigILL!=NULL)
-        signal(SIGINT, handlers->m_prevSigILL);     
+        signal(SIGINT, handlers->m_prevSigILL);
 
     if(handlers->m_prevSigSEGV!=NULL)
-        signal(SIGSEGV, handlers->m_prevSigSEGV); 
+        signal(SIGSEGV, handlers->m_prevSigSEGV);
 
     // Remove from the list
-    m_ThreadExceptionHandlers.erase(it);
+    m_threadExceptionHandlers.erase(it);
 
     return 0;
 }
