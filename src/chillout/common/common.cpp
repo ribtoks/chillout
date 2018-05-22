@@ -1,6 +1,7 @@
 #include "common.h"
 #include <ctime>
 #include <locale>
+#include <cstring>
 
 tm now() {
     time_t now = time(0);
