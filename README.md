@@ -48,3 +48,4 @@ This project won't be possible without:
 * [CrashRpt](http://crashrpt.sourceforge.net/) - most full collection of information about Windows crash handlers
 * [DeathHandler](https://github.com/vmarkovtsev/DeathHandler) - ideas to preallocate buffer in case of broken heap on 'nix systems
 * [gist by @fmela](https://gist.github.com/fmela/591333) - idea to use `dladdr()` instead of parsing raw/mangled line myself
+* [stacktrace in Chromium](https://chromium.googlesource.com/chromium/src/base/+/master/debug/stack_trace_posix.cc) - just useful information how demangling works in Chromium
