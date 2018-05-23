@@ -71,7 +71,7 @@ namespace Debug {
 
     private:
         void backtrace(EXCEPTION_POINTERS* pExPtrs);
-        void createDump(EXCEPTION_POINTERS* pExPtrs, const std::string &path);
+        void createDump(EXCEPTION_POINTERS* pExPtrs, const std::wstring &path);
 
     public:
         bool isDataSectionNeeded(const WCHAR* pModuleName);
@@ -118,7 +118,7 @@ namespace Debug {
         std::function<void(const char * const)> m_backtraceCallback;
         std::mutex m_crashMutex;
         CrashDumpSize m_crashDumpSize;
-        std::string m_pathToCrashDump;
+        std::wstring m_pathToCrashDump;
         std::wstring m_appName;
 
         std::map<DWORD, ThreadExceptionHandlers> m_threadExceptionHandlers;

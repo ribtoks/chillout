@@ -403,10 +403,7 @@ namespace Debug {
             s << L"\\\\?\\" << path << L'\\' << appName << L'_';
             formatDateTime(s, now(), WIDEN(CHILLOUT_DATETIME));
             s << ".dmp";
-            std::wstring pathToCrashFile = s.str();
-            using convert_type = std::codecvt_utf8<wchar_t>;
-            std::wstring_convert<convert_type, wchar_t> converter;
-            m_pathToCrashDump = converter.to_bytes(pathToCrashFile);
+            m_pathToCrashDump = s.str();
         }
 
         EnableCrashingOnCrashes();
@@ -453,7 +450,7 @@ namespace Debug {
         }
     }
 
-    void WindowsCrashHandler::createDump(EXCEPTION_POINTERS* pExPtrs, const std::string &path) {
+    void WindowsCrashHandler::createDump(EXCEPTION_POINTERS* pExPtrs, const std::wstring &path) {
         MINIDUMP_TYPE mdt = (MINIDUMP_TYPE)(MiniDumpNormal);
 
         switch (m_crashDumpSize)
@@ -705,6 +702,8 @@ namespace Debug {
     }
 
     int __cdecl WindowsCrashHandler::CrtReportHook(int nReportType, char* szMsg, int* pnRet) {
+        (void)szMsg;
+
         switch (nReportType) {
         case _CRT_WARN:
         case _CRT_ERROR:
@@ -786,6 +785,10 @@ namespace Debug {
             unsigned int line,
             uintptr_t pReserved) {
         pReserved;
+        expression;
+        function;
+        file;
+        line;
 
         // fwprintf(stderr, L"Invalid parameter detected in function %s."
         //        L" File: %s Line: %d\n", function, file, line);
@@ -828,6 +831,7 @@ namespace Debug {
     // CRT SIGFPE signal handler
     void WindowsCrashHandler::SigfpeHandler(int /*code*/, int subcode) {
         // Floating point exception (SIGFPE)
+        (void)subcode;
 
         EXCEPTION_POINTERS* pExceptionPtrs = (PEXCEPTION_POINTERS)_pxcptinfoptrs;
 
