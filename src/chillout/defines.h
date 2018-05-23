@@ -1,5 +1,5 @@
-#ifndef DEFINES_H
-#define DEFINES_H
+#ifndef CHILLOUTDEFINES_H
+#define CHILLOUTDEFINES_H
 
 #define CHILLOUT_EXIT_CODE 3
 
@@ -13,4 +13,4 @@
 #define WIDEN(quote) quote
 #endif
 
-#endif // DEFINES_H
+#endif // CHILLOUTDEFINES_H
