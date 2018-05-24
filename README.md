@@ -28,8 +28,9 @@ The API is very simple - you provide your callbacks for crash and/or backtracing
         fprintf(stderr, "my trace:  %s", stackEntry);
     });
     
-    chillout.setCrashCallback([]() {
-        // restart your app / save dump / etc
+    chillout.setCrashCallback([&chillout]() {
+        chillout.backtrace();
+        chillout.createCrashDump();
     });
 
 ### Disclaimer
