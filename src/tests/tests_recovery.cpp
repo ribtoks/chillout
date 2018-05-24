@@ -22,8 +22,11 @@ protected:
         auto &chillout = Debug::Chillout::getInstance();
         chillout.init(WIDEN("chillout_test"), WIDEN(STRINGIZE(CRASHDUMPSDIR)));
         chillout.setBacktraceCallback(chilltrace);
-        chillout.setCrashCallback([](){
-                fprintf(stderr, "Crash callback");
+        chillout.setCrashCallback([&chillout](){
+                chillout.backtrace();
+#ifdef _WIN32
+                chillout.createCrashDump();
+#endif
             });
     }
 
