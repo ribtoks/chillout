@@ -44,4 +44,13 @@ namespace Debug {
 #endif
         handler.setCrashCallback(callback);
     }
+
+    void Chillout::backtrace() {
+#ifdef _WIN32
+        //WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
+#else
+        PosixCrashHandler &handler = PosixCrashHandler::getInstance();
+#endif
+        handler.backtrace();
+    }
 }

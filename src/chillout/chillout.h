@@ -27,6 +27,7 @@ namespace Debug {
         void deinit();
         void setBacktraceCallback(const std::function<void(const char * const)> &callback);
         void setCrashCallback(const std::function<void()> &callback);
+        void backtrace();
 
     private:
         Chillout(): m_InitCounter(0) {}

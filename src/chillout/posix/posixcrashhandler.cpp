@@ -15,6 +15,10 @@
 #include "../defines.h"
 #include "../common/common.h"
 
+#define KILOBYTE 1024
+#define DEMANGLE_MEMORY_SIZE (10*(KILOBYTE))
+#define STACK_MEMORY_SIZE (90*(KILOBYTE))
+
 namespace Debug {
     struct FreeDeleter {
         void operator()(void* ptr) const {
@@ -30,68 +34,9 @@ namespace Debug {
         return allocated;
     }
 
-    char *dlDemangle(void *addr, char *symbol, int frameIndex, char *memory) {
-        Dl_info info;
-        if (dladdr(addr, &info) != 0) {
-            const int stackFrameSize = 4096;
-            char *stackFrame = fake_alloc(&memory, stackFrameSize);
-
-            if ((info.dli_sname != NULL) && (info.dli_sname[0] == '_')) {
-                int status = -1;
-                std::unique_ptr<char, FreeDeleter> demangled(abi::__cxa_demangle(info.dli_sname, NULL, 0, &status));
-                snprintf(stackFrame, stackFrameSize, "%-3d %*p %s + %zd\n",
-                         frameIndex, int(2 + sizeof(void*) * 2), addr,
-                         status == 0 ? demangled.get() :
-                                       info.dli_sname == 0 ? symbol : info.dli_sname,
-                         (char *)addr - (char *)info.dli_saddr);
-
-            } else {
-                snprintf(stackFrame, stackFrameSize, "%-3d %*p %s\n",
-                         frameIndex, int(2 + sizeof(void*) * 2), addr, symbol);
-            }
-
-            return stackFrame;
-        }
-
-        return NULL;
-    }
-
-    void walkStackTrace(const std::function<void(const char * const)> &callback,
-                        char *memory,
-                        size_t memorySize,
-                        const std::string &btFilepath,
-                        unsigned int maxFrames = 127) {
-        const size_t framesSize = maxFrames * sizeof(void*);
-        void **callstack = reinterpret_cast<void**>(fake_alloc(&memory, framesSize));
-        int frames = backtrace(callstack, maxFrames);
-
-        const int stackOffset = callstack[2] == callstack[1] ? 2 : 1;
-
-        if (!btFilepath.empty()) {
-            if (FILE *fp = fopen(btFilepath.c_str(), "a")) {
-                fseek(fp, 0, SEEK_END);
-                int fd = fileno(fp);
-                backtrace_symbols_fd(callstack, frames, fd);
-                fclose(fp);
-            }
-        }
-
-        std::unique_ptr<char*, FreeDeleter> symbolsPtr(backtrace_symbols(callstack, frames));
-        if (!symbolsPtr) { return; }
-
-        char **symbols = symbolsPtr.get();
-
-        for (int i = stackOffset; i < frames; ++i) {
-            memset(memory, 0, memorySize - framesSize - 1);
-
-            char *stackFrame = dlDemangle(callstack[i], symbols[i], i, memory);
-            if (stackFrame) {
-                callback(stackFrame);
-            }
-        }
-
-        if (frames == maxFrames) {
-            callback("[truncated]\n");
+    void chilltrace(const char * const stackEntry) {
+        if (stackEntry) {
+            fprintf(stderr, stackEntry);
         }
     }
 
@@ -108,8 +53,22 @@ namespace Debug {
         exit(CHILLOUT_EXIT_CODE);
     }
 
-    PosixCrashHandler::PosixCrashHandler() {
-        memset(&m_memory[0], 0, sizeof(m_memory));
+    PosixCrashHandler::PosixCrashHandler():
+        m_stackMemory(nullptr),
+        m_demangleMemory(nullptr)
+    {
+        m_stackMemory = (char*)malloc(STACK_MEMORY_SIZE);
+        memset(&m_stackMemory[0], 0, sizeof(STACK_MEMORY_SIZE));
+
+        m_demangleMemory = (char*)malloc(DEMANGLE_MEMORY_SIZE);
+        memset(&m_demangleMemory[0], 0, sizeof(DEMANGLE_MEMORY_SIZE));
+
+        m_backtraceCallback = chilltrace;
+    }
+
+    PosixCrashHandler::~PosixCrashHandler() {
+        free(m_stackMemory);
+        free(m_demangleMemory);
     }
 
     void PosixCrashHandler::setup(const std::string &appName, const std::string &crashDirPath) {
@@ -168,10 +127,6 @@ namespace Debug {
     }
 
     void PosixCrashHandler::handleCrash() {
-        if (m_backtraceCallback) {
-            walkStackTrace(m_backtraceCallback, m_memory, sizeof(m_memory), m_backtraceFilePath);
-        }
-
         if (m_crashCallback) {
             m_crashCallback();
         }
@@ -183,5 +138,75 @@ namespace Debug {
     
     void PosixCrashHandler::setBacktraceCallback(const std::function<void(const char * const)> &callback) {
         m_backtraceCallback = callback;
+    }
+
+    void PosixCrashHandler::backtrace() {
+        if (m_backtraceCallback) {
+            walkStackTrace(m_stackMemory, STACK_MEMORY_SIZE);
+        }
+    }
+
+    void PosixCrashHandler::walkStackTrace(char *memory, size_t memorySize, int maxFrames) {
+        const size_t framesSize = maxFrames * sizeof(void*);
+        void **callstack = reinterpret_cast<void**>(fake_alloc(&memory, framesSize));
+        int frames = ::backtrace(callstack, maxFrames);
+
+        const int stackOffset = callstack[2] == callstack[1] ? 2 : 1;
+
+        if (!m_backtraceFilePath.empty()) {
+            if (FILE *fp = fopen(m_backtraceFilePath.c_str(), "a")) {
+                fseek(fp, 0, SEEK_END);
+                int fd = fileno(fp);
+                backtrace_symbols_fd(callstack, frames, fd);
+                fclose(fp);
+            }
+        }
+
+        std::unique_ptr<char*, FreeDeleter> symbolsPtr(backtrace_symbols(callstack, frames));
+        if (!symbolsPtr) { return; }
+
+        char **symbols = symbolsPtr.get();
+
+        for (int i = stackOffset; i < frames; ++i) {
+            memset(memory, 0, memorySize - framesSize - 1);
+
+            char *stackFrame = dlDemangle(callstack[i], symbols[i], i, memory);
+            if (stackFrame) {
+                m_backtraceCallback(stackFrame);
+            }
+        }
+
+        if (frames == maxFrames) {
+            m_backtraceCallback("[truncated]\n");
+        }
+    }
+
+    char *PosixCrashHandler::dlDemangle(void *addr, char *symbol, int frameIndex, char *stackMemory) {
+        Dl_info info;
+        if (dladdr(addr, &info) != 0) {
+            const int stackFrameSize = 4096;
+            char *stackFrame = fake_alloc(&stackMemory, stackFrameSize);
+
+            if ((info.dli_sname != NULL) && (info.dli_sname[0] == '_')) {
+                int status = -1;
+                size_t length = DEMANGLE_MEMORY_SIZE;
+                char *demangled = abi::__cxa_demangle(info.dli_sname, m_demangleMemory, &length, &status);
+                if (status == 0) { m_demangleMemory = demangled; }
+
+                snprintf(stackFrame, stackFrameSize, "%-3d %*p %s + %zd\n",
+                         frameIndex, int(2 + sizeof(void*) * 2), addr,
+                         status == 0 ? demangled :
+                                       info.dli_sname == 0 ? symbol : info.dli_sname,
+                         (char *)addr - (char *)info.dli_saddr);
+
+            } else {
+                snprintf(stackFrame, stackFrameSize, "%-3d %*p %s\n",
+                         frameIndex, int(2 + sizeof(void*) * 2), addr, symbol);
+            }
+
+            return stackFrame;
+        }
+
+        return NULL;
     }
 }

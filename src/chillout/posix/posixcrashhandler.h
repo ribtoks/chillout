@@ -16,6 +16,7 @@ namespace Debug {
 
     private:
         PosixCrashHandler();
+        ~PosixCrashHandler();
 
     public:
         void setup(const std::string &appName, const std::string &crashDirPath);
@@ -23,11 +24,17 @@ namespace Debug {
         void handleCrash();
         void setCrashCallback(const std::function<void()> &callback);
         void setBacktraceCallback(const std::function<void(const char * const)> &callback);
+        void backtrace();
+
+    private:
+        void walkStackTrace(char *memory, size_t memorySize, int maxFrames=128);
+        char *dlDemangle(void *addr, char *symbol, int frameIndex, char *stackMemory);
 
     private:
         std::function<void()> m_crashCallback;
         std::function<void(const char * const)> m_backtraceCallback;
-        char m_memory[10*1024];
+        char *m_stackMemory;
+        char *m_demangleMemory;
         std::string m_backtraceFilePath;
     };
 }
