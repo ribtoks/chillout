@@ -21,6 +21,8 @@
 #include <string>
 #include <map>
 
+#include "../common/common.h"
+
 namespace Debug {
     struct ThreadExceptionHandlers
     {
@@ -44,13 +46,6 @@ namespace Debug {
     class WindowsCrashHandler
     {
     public:
-        enum CrashDumpSize {
-            CrashDumpSmall,
-            CrashDumpNormal,
-            CrashDumpFull
-        };
-
-    public:
         static WindowsCrashHandler& getInstance()
         {
             static WindowsCrashHandler instance; // Guaranteed to be destroyed.
@@ -64,14 +59,11 @@ namespace Debug {
     public:
         void setup(const std::wstring &appName, const std::wstring &dumpsDir);
         void teardown();
-        void setCrashDumpSize(CrashDumpSize size);
         void setCrashCallback(const std::function<void()> &callback);
         void setBacktraceCallback(const std::function<void(const char * const)> &callback);
         void handleCrash(EXCEPTION_POINTERS* pExPtrs);
-
-    private:
-        void backtrace(EXCEPTION_POINTERS* pExPtrs);
-        void createDump(EXCEPTION_POINTERS* pExPtrs, const std::wstring &path);
+        void backtrace();
+        void createCrashDump(CrashDumpSize size);
 
     public:
         bool isDataSectionNeeded(const WCHAR* pModuleName);
@@ -117,9 +109,9 @@ namespace Debug {
         std::function<void()> m_crashCallback;
         std::function<void(const char * const)> m_backtraceCallback;
         std::mutex m_crashMutex;
-        CrashDumpSize m_crashDumpSize;
         std::wstring m_pathToCrashDump;
         std::wstring m_appName;
+        EXCEPTION_POINTERS* m_lastExceptionPointers;
 
         std::map<DWORD, ThreadExceptionHandlers> m_threadExceptionHandlers;
         std::mutex m_threadHandlersMutex;

@@ -365,6 +365,8 @@ namespace Debug {
     }
 
     WindowsCrashHandler::WindowsCrashHandler() {
+        m_lastExceptionPointers = NULL;
+
         m_oldSehHandler = NULL;
 
 #if _MSC_VER>=1300
@@ -383,8 +385,6 @@ namespace Debug {
         m_prevSigABRT = NULL;
         m_prevSigINT = NULL;
         m_prevSigTERM = NULL;
-
-        m_crashDumpSize = CrashDumpNormal;
 
         m_crtReportHook = NULL;
     }
@@ -416,10 +416,6 @@ namespace Debug {
         unsetThreadExceptionHandlers();
     }
 
-    void WindowsCrashHandler::setCrashDumpSize(CrashDumpSize size) {
-        m_crashDumpSize = size;
-    }
-
     void WindowsCrashHandler::setCrashCallback(const std::function<void()> &callback) {
         m_crashCallback = callback;
     }
@@ -432,8 +428,7 @@ namespace Debug {
         std::lock_guard<std::mutex> guard(m_crashMutex);
         (void)guard;
 
-        backtrace(pExPtrs);
-        createDump(pExPtrs, m_pathToCrashDump);
+        m_lastExceptionPointers = pExPtrs;
 
         if (m_crashCallback) {
             m_crashCallback();
@@ -443,17 +438,19 @@ namespace Debug {
         TerminateProcess(GetCurrentProcess(), CHILLOUT_EXIT_CODE);
     }
 
-    void WindowsCrashHandler::backtrace(EXCEPTION_POINTERS* pExPtrs) {
-        if (m_backtraceCallback) {
+    void WindowsCrashHandler::backtrace() {
+        if (m_backtraceCallback && (m_lastExceptionPointers != NULL)) {
             StackWalkerWithCallback sw(m_backtraceCallback);
-            sw.ShowCallstack(GetCurrentThread(), pExPtrs->ContextRecord);
+            sw.ShowCallstack(GetCurrentThread(), m_lastExceptionPointers->ContextRecord);
         }
     }
 
-    void WindowsCrashHandler::createDump(EXCEPTION_POINTERS* pExPtrs, const std::wstring &path) {
+    void WindowsCrashHandler::createCrashDump(CrashDumpSize size) {
+        if (m_lastExceptionPointers == NULL) { return; }
+
         MINIDUMP_TYPE mdt = (MINIDUMP_TYPE)(MiniDumpNormal);
 
-        switch (m_crashDumpSize)
+        switch (size)
         {
         case CrashDumpSmall:
             mdt = (MINIDUMP_TYPE)(MiniDumpScanMemory |
@@ -480,7 +477,7 @@ namespace Debug {
         }
         }
 
-        CreateMiniDump(path.c_str(), pExPtrs, mdt, this);
+        CreateMiniDump(m_pathToCrashDump.c_str(), m_lastExceptionPointers, mdt, this);
     }
 
     bool WindowsCrashHandler::isDataSectionNeeded(const WCHAR* pModuleName) {

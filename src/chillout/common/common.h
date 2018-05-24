@@ -6,11 +6,19 @@
 
 #define CHILLOUT_DATETIME "%Y%m%d_%H%M%S"
 
-tm now();
+namespace Debug {
+    tm now();
 #ifdef _WIN32
-std::wostream& formatDateTime(std::wostream& out, const tm& t, const wchar_t *fmt);
+    std::wostream& formatDateTime(std::wostream& out, const tm& t, const wchar_t *fmt);
 #else
-std::ostream& formatDateTime(std::ostream& out, const tm& t, const char* fmt);
+    std::ostream& formatDateTime(std::ostream& out, const tm& t, const char* fmt);
 #endif
+
+    enum CrashDumpSize {
+        CrashDumpSmall,
+        CrashDumpNormal,
+        CrashDumpFull
+    };
+}
 
 #endif // COMMON_H

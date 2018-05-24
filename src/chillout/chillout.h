@@ -4,6 +4,7 @@
 #include <functional>
 #include <string>
 #include <atomic>
+#include "common/common.h"
 
 namespace Debug {
     class Chillout {
@@ -28,6 +29,11 @@ namespace Debug {
         void setBacktraceCallback(const std::function<void(const char * const)> &callback);
         void setCrashCallback(const std::function<void()> &callback);
         void backtrace();
+
+#ifdef _WIN32
+    public:
+        void createCrashDump(CrashDumpSize size = CrashDumpNormal);
+#endif
 
     private:
         Chillout(): m_InitCounter(0) {}

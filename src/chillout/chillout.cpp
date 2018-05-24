@@ -47,10 +47,17 @@ namespace Debug {
 
     void Chillout::backtrace() {
 #ifdef _WIN32
-        //WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
+        WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
 #else
         PosixCrashHandler &handler = PosixCrashHandler::getInstance();
 #endif
         handler.backtrace();
     }
+
+#ifdef _WIN32
+    void Chillout::createCrashDump(CrashDumpSize size) {
+        WindowsCrashHandler &handler = WindowsCrashHandler::getInstance();
+        handler.createCrashDump(size);
+    }
+#endif
 }
