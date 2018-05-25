@@ -447,6 +447,7 @@ namespace Debug {
 
     void WindowsCrashHandler::createCrashDump(CrashDumpSize size) {
         if (m_lastExceptionPointers == NULL) { return; }
+        if (m_pathToCrashDump.empty()) { return; }
 
         MINIDUMP_TYPE mdt = (MINIDUMP_TYPE)(MiniDumpNormal);
 
