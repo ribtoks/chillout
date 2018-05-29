@@ -50,7 +50,7 @@ namespace Debug {
         // If you caught one of the above signals, it is likely you just
         // want to quit your program right now.
         //exit( signum );
-        exit(CHILLOUT_EXIT_CODE);
+        std::_Exit(CHILLOUT_EXIT_CODE);
     }
 
     PosixCrashHandler::PosixCrashHandler():
