@@ -322,7 +322,7 @@ namespace Debug {
         {
             // http://groups.google.com/group/crashrpt/browse_thread/thread/a1dbcc56acb58b27/fbd0151dd8e26daf?lnk=gst&q=stack+overflow#fbd0151dd8e26daf
             HANDLE thread = ::CreateThread(0, 0,
-                                           &StackOverflowThreadFunction, pExceptionPtrs, 0, 0);
+                                           &StackOverflowThreadFunction, pExPtrs, 0, 0);
             DWORD dwMilliseconds = 1000 * 30; // 30 seconds
             ::WaitForSingleObject(thread, dwMilliseconds);
             ::CloseHandle(thread);
