@@ -2,6 +2,7 @@
 
 [![Build status](https://ci.appveyor.com/api/projects/status/b2mfobskucq936hc/branch/master?svg=true)](https://ci.appveyor.com/project/Ribtoks/chillout/branch/master)
 [![Build Status](https://travis-ci.org/ribtoks/chillout.svg?branch=master)](https://travis-ci.org/ribtoks/chillout)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/986469b7d3b54cdca5349193ec0210ca)](https://www.codacy.com/app/ribtoks/chillout)
 
 ![os windows](https://img.shields.io/badge/OS-Windows-yellowgreen.svg)
 ![os mac](https://img.shields.io/badge/OS-macOS-yellowgreen.svg)
