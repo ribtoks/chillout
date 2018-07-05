@@ -58,10 +58,10 @@ namespace Debug {
         m_demangleMemory(nullptr)
     {
         m_stackMemory = (char*)malloc(STACK_MEMORY_SIZE);
-        memset(&m_stackMemory[0], 0, sizeof(STACK_MEMORY_SIZE));
+        memset(&m_stackMemory[0], 0, STACK_MEMORY_SIZE);
 
         m_demangleMemory = (char*)malloc(DEMANGLE_MEMORY_SIZE);
-        memset(&m_demangleMemory[0], 0, sizeof(DEMANGLE_MEMORY_SIZE));
+        memset(&m_demangleMemory[0], 0, DEMANGLE_MEMORY_SIZE);
 
         m_backtraceCallback = chilltrace;
     }
