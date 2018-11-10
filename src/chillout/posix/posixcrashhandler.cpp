@@ -36,7 +36,7 @@ namespace Debug {
 
     void chilltrace(const char * const stackEntry) {
         if (stackEntry) {
-            fprintf(stderr, stackEntry);
+            fputs(stackEntry,stderr);
         }
     }
 
