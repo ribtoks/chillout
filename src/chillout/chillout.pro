@@ -5,8 +5,6 @@ TEMPLATE = lib
 CONFIG += c++11
 CONFIG += staticlib
 
-QMAKE_MAC_SDK = macosx10.11
-
 HEADERS += \
     chillout.h \
     defines.h \
