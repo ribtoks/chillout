@@ -15,8 +15,14 @@ endif (MSVC)
 
 #add_definitions(-DGTEST_HAS_SEH=0)
 
-enable_testing()
-
 add_subdirectory(src/chillout)
-add_subdirectory(vendors/gtest)
-add_subdirectory(src/tests)
+
+option (BUILD_TESTING "Build the testing tree." OFF)
+# Only build all if we are the top-level project
+# Allows this to be used by super projects with `add_subdirectory`
+if (BUILD_TESTING OR (PROJECT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR))
+    enable_testing()
+
+    add_subdirectory(vendors/gtest)
+    add_subdirectory(src/tests)
+endif()
