@@ -19,5 +19,4 @@ if(UNIX)
   target_link_libraries(chillout dl)
 endif()
 
-
-install(TARGETS chillout DESTINATION lib)
+install(TARGETS chillout)
